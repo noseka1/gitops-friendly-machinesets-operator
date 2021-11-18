@@ -18,37 +18,45 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 
 	machineapi "github.com/openshift/api/machine/v1beta1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // MachineSetReconciler reconciles a MachineSet object
 type MachineSetReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme              *runtime.Scheme
+	MachineSetInterface dynamic.NamespaceableResourceInterface
 }
 
 //+kubebuilder:rbac:groups=machine.openshift.io.redhat.com,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=machine.openshift.io.redhat.com,resources=machinesets/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=machine.openshift.io.redhat.com,resources=machinesets/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the MachineSet object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
-	// your logic here
+	logger.Info("Reconciling MachinePool object " + req.String())
+
+	ms, err := r.MachineSetInterface.Namespace(req.Namespace).Get(ctx, req.Name, v1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.V(4).Error(err, "object "+req.NamespacedName.String()+" no longer exists")
+			return reconcile.Result{}, nil
+		}
+		logger.Error(err, "failed to get "+req.NamespacedName.String())
+		return reconcile.Result{}, err
+	}
+	marshall, _ := json.Marshal(ms.Object)
+	logger.Info("JSON: " + string(marshall))
 
 	return ctrl.Result{}, nil
 }

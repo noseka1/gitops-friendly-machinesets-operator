@@ -23,10 +23,14 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/rest"
 
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -76,9 +80,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	machineSetInterface := getMachineSetInterface(mgr.GetConfig())
+
 	if err = (&controllers.MachineSetReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:              mgr.GetClient(),
+		Scheme:              mgr.GetScheme(),
+		MachineSetInterface: machineSetInterface,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MachineSet")
 		os.Exit(1)
@@ -106,4 +113,51 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func getMachineSetInterface(clientConfig *rest.Config) dynamic.NamespaceableResourceInterface {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(clientConfig)
+	if err != nil {
+		setupLog.Error(err, "unable to create a discovery client")
+		os.Exit(1)
+	}
+
+	machineSetGv := schema.GroupVersion{
+		Group:   machineapi.SchemeGroupVersion.Group,
+		Version: machineapi.SchemeGroupVersion.Version,
+	}
+	machineSetKind := "MachineSet"
+
+	resourceList, err := discoveryClient.ServerResourcesForGroupVersion(machineSetGv.String())
+	if err != nil {
+		setupLog.Error(err, "unable to retrieve resouce list for "+machineSetGv.String())
+		os.Exit(1)
+	}
+
+	var machineSetResource string
+	for _, res := range resourceList.APIResources {
+		if res.Kind == machineSetKind {
+			machineSetResource = res.Name
+			break
+		}
+	}
+
+	if machineSetResource == "" {
+		setupLog.Info("cannot find resource for kind " + machineSetKind)
+		os.Exit(1)
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(clientConfig)
+	if err != nil {
+		setupLog.Error(err, "unable to create a dynamic client")
+		os.Exit(1)
+	}
+
+	machineSetGvr := schema.GroupVersionResource{
+		Group:    machineapi.SchemeGroupVersion.Group,
+		Version:  machineapi.SchemeGroupVersion.Version,
+		Resource: machineSetResource,
+	}
+
+	return dynamicClient.Resource(machineSetGvr)
 }
