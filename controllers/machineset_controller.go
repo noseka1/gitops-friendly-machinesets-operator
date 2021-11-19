@@ -35,6 +35,7 @@ import (
 type MachineSetReconciler struct {
 	client.Client
 	Scheme              *runtime.Scheme
+	InfrastructureName  string
 	MachineSetInterface dynamic.NamespaceableResourceInterface
 }
 

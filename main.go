@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
@@ -25,6 +26,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 
+	configapi "github.com/openshift/api/config/v1"
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,6 +34,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -80,11 +83,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	infrastructureName := getInfrastructureName(mgr.GetConfig())
 	machineSetInterface := getMachineSetInterface(mgr.GetConfig())
 
 	if err = (&controllers.MachineSetReconciler{
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
+		InfrastructureName:  infrastructureName,
 		MachineSetInterface: machineSetInterface,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MachineSet")
@@ -113,6 +118,41 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+// Retrieve unique infrastructure name of this OpenShift cluster. It is equivalent of:
+// oc get infrastructure cluster -o jsonpath='{.status.infrastructureName}'
+func getInfrastructureName(clientConfig *rest.Config) string {
+
+	configScheme := runtime.NewScheme()
+	utilruntime.Must(configapi.Install(configScheme))
+
+	kubeClient, err := client.New(clientConfig, client.Options{Scheme: configScheme})
+	if err != nil {
+		setupLog.Error(err, "failed to create kube client")
+		os.Exit(1)
+	}
+
+	infraObjectName := client.ObjectKey{
+		Namespace: "",
+		Name:      "cluster",
+	}
+	infraObject := &configapi.Infrastructure{}
+
+	if err = kubeClient.Get(context.TODO(), infraObjectName, infraObject); err != nil {
+		setupLog.Error(err, "unable retrieve object "+infraObjectName.String()+" of kind Infrastructure")
+		os.Exit(1)
+	}
+	infraName := infraObject.Status.InfrastructureName
+
+	if infraName == "" {
+		setupLog.Error(err, "Infrastructure.status.infrastructureName must not be empty")
+		os.Exit(1)
+	}
+
+	setupLog.Info("Infrastructure name of this cluster is " + infraName)
+
+	return infraName
 }
 
 func getMachineSetInterface(clientConfig *rest.Config) dynamic.NamespaceableResourceInterface {
