@@ -17,13 +17,17 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 
+	"github.com/go-logr/logr"
 	machineapi "github.com/openshift/api/machine/v1beta1"
+	"github.com/wI2L/jsondiff"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,19 +49,45 @@ type MachineSetReconciler struct {
 func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	logger.Info("Reconciling MachinePool object " + req.String())
-
-	ms, err := r.MachineSetInterface.Namespace(req.Namespace).Get(ctx, req.Name, v1.GetOptions{})
+	// Fetch the MachineSet object from Kubernetes
+	machineSet, err := r.MachineSetInterface.Namespace(req.Namespace).Get(ctx, req.Name, v1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.V(4).Error(err, "object "+req.NamespacedName.String()+" no longer exists")
+			logger.V(2).Info("Object no longer exists.", "err", err)
 			return reconcile.Result{}, nil
 		}
-		logger.Error(err, "failed to get "+req.NamespacedName.String())
+		logger.Error(err, "Failed to get object from Kubernetes.")
 		return reconcile.Result{}, err
 	}
-	marshall, _ := json.Marshal(ms.Object)
-	logger.Info("JSON: " + string(marshall))
+
+	// Should we reconcile this MachineSet object?
+	enabled, tokenName := evaluateAnnotations(logger, machineSet)
+	if !enabled {
+		return reconcile.Result{}, nil
+	}
+
+	// Extract MachineSet sections that are going to be patched
+	machineSetBytes, err := marshalObjectSections(logger, machineSet)
+	if err != nil {
+		return reconcile.Result{}, nil
+	}
+
+	// Compute the JSON patch
+	machineSetPatchBytes, err := createPatch(logger, machineSetBytes, tokenName, r.InfrastructureName)
+	if err != nil || len(machineSetPatchBytes) == 0 {
+		return reconcile.Result{}, nil
+	}
+
+	// Patch the MachineSet object in Kubernetes
+	_, err = r.MachineSetInterface.Namespace(req.Namespace).Patch(ctx, req.Name, types.JSONPatchType, machineSetPatchBytes, v1.PatchOptions{})
+	if err != nil {
+		if apierrors.IsConflict(err) {
+			logger.V(2).Error(err, "Update coflict while patching the object in Kubernetes.")
+		} else {
+			logger.Error(err, "Failed to patch the object in Kubernetes.")
+		}
+		return reconcile.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -67,4 +97,29 @@ func (r *MachineSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&machineapi.MachineSet{}).
 		Complete(r)
+}
+
+func createPatch(logger logr.Logger, machineSetBytes []byte, tokenName, infrastructureName string) ([]byte, error) {
+	machineSetUpdatedBytes := bytes.ReplaceAll(machineSetBytes, []byte(tokenName), []byte(infrastructureName))
+
+	jsonPatch, err := jsondiff.CompareJSON(machineSetBytes, machineSetUpdatedBytes)
+	if err != nil {
+		logger.Error(err, "Failed to generate patch.")
+		return []byte{}, err
+	}
+
+	if len(jsonPatch) == 0 {
+		logger.V(2).Info("Nothing to patch for object.")
+		return []byte{}, nil
+	}
+
+	jsonPatchBytes, err := json.Marshal(jsonPatch)
+	if err != nil {
+		logger.Error(err, "Failed to marshal patch.")
+		return []byte{}, err
+	}
+
+	logger.V(3).Info("Generated JSON Patch: " + string(jsonPatchBytes))
+
+	return jsonPatchBytes, nil
 }
