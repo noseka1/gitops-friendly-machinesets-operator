@@ -17,39 +17,66 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 
 	machineapi "github.com/openshift/api/machine/v1beta1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // MachineReconciler reconciles a Machine object
 type MachineReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme           *runtime.Scheme
+	MachineInterface dynamic.NamespaceableResourceInterface
 }
 
 //+kubebuilder:rbac:groups=machine.openshift.io.redhat.com,resources=machines,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=machine.openshift.io.redhat.com,resources=machines/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=machine.openshift.io.redhat.com,resources=machines/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Machine object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	logger.Info("Reconciling object " + req.String())
-	// your logic here
+	logger.V(2).Info("Reconciling object.")
+
+	// Fetch the Machine object from Kubernetes
+	machine, err := r.MachineInterface.Namespace(req.Namespace).Get(ctx, req.Name, v1.GetOptions{})
+	if err != nil {
+		err = processKubernetesError(logger, "get", err)
+		return reconcile.Result{}, err
+	}
+
+	// Should we reconcile this Machine object?
+	enabled, tokenName := evaluateAnnotations(logger, machine)
+	if !enabled {
+		return reconcile.Result{}, nil
+	}
+
+	// Extract Machine sections that should have been patched
+	machineBytes, err := marshalObjectSections(logger, machine)
+	if err != nil {
+		return reconcile.Result{}, nil
+	}
+
+	// If we can find the token in the Machine object, we are going to delete this object.
+	if !bytes.Contains(machineBytes, []byte(tokenName)) {
+		return reconcile.Result{}, nil
+	}
+
+	// Delete the Machine object in Kubernetes
+	err = r.MachineInterface.Namespace(req.Namespace).Delete(ctx, req.Name, v1.DeleteOptions{})
+	if err != nil {
+		err = processKubernetesError(logger, "delete", err)
+		return reconcile.Result{}, err
+	}
+
+	logger.Info("Machine deleted successfully.")
 
 	return ctrl.Result{}, nil
 }

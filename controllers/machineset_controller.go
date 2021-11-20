@@ -24,7 +24,6 @@ import (
 	"github.com/go-logr/logr"
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	"github.com/wI2L/jsondiff"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,14 +48,12 @@ type MachineSetReconciler struct {
 func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
+	logger.V(2).Info("Reconciling object.")
+
 	// Fetch the MachineSet object from Kubernetes
 	machineSet, err := r.MachineSetInterface.Namespace(req.Namespace).Get(ctx, req.Name, v1.GetOptions{})
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.V(2).Info("Object no longer exists.", "err", err)
-			return reconcile.Result{}, nil
-		}
-		logger.Error(err, "Failed to get object from Kubernetes.")
+		err = processKubernetesError(logger, "get", err)
 		return reconcile.Result{}, err
 	}
 
@@ -81,13 +78,11 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// Patch the MachineSet object in Kubernetes
 	_, err = r.MachineSetInterface.Namespace(req.Namespace).Patch(ctx, req.Name, types.JSONPatchType, machineSetPatchBytes, v1.PatchOptions{})
 	if err != nil {
-		if apierrors.IsConflict(err) {
-			logger.V(2).Error(err, "Update coflict while patching the object in Kubernetes.")
-		} else {
-			logger.Error(err, "Failed to patch the object in Kubernetes.")
-		}
+		err = processKubernetesError(logger, "patch", err)
 		return reconcile.Result{}, err
 	}
+
+	logger.Info("MachineSet updated successfully.")
 
 	return ctrl.Result{}, nil
 }

@@ -83,8 +83,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	infrastructureName := getInfrastructureName(mgr.GetConfig())
-	machineSetInterface := getMachineSetInterface(mgr.GetConfig())
+	restConfig := mgr.GetConfig()
+
+	infrastructureName := getInfrastructureName(restConfig)
+
+	machineSetResource := getMachineApiResourceForKind(restConfig, "MachineSet")
+	machineSetInterface := getMachineApiInterfaceForResource(restConfig, machineSetResource)
+	machineResource := getMachineApiResourceForKind(restConfig, "Machine")
+	machineInterface := getMachineApiInterfaceForResource(restConfig, machineResource)
 
 	if err = (&controllers.MachineSetReconciler{
 		Client:              mgr.GetClient(),
@@ -96,8 +102,9 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.MachineReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		MachineInterface: machineInterface,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Machine")
 		os.Exit(1)
@@ -120,7 +127,7 @@ func main() {
 	}
 }
 
-// Retrieve unique infrastructure name of this OpenShift cluster. It is equivalent of:
+// Retrieve unique infrastructure name of this OpenShift cluster (something like mycluster-jfnx7). It is equivalent of:
 // oc get infrastructure cluster -o jsonpath='{.status.infrastructureName}'
 func getInfrastructureName(clientConfig *rest.Config) string {
 
@@ -155,7 +162,7 @@ func getInfrastructureName(clientConfig *rest.Config) string {
 	return infraName
 }
 
-func getMachineSetInterface(clientConfig *rest.Config) dynamic.NamespaceableResourceInterface {
+func getMachineApiResourceForKind(clientConfig *rest.Config, kind string) string {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(clientConfig)
 	if err != nil {
 		setupLog.Error(err, "unable to create a discovery client")
@@ -166,7 +173,6 @@ func getMachineSetInterface(clientConfig *rest.Config) dynamic.NamespaceableReso
 		Group:   machineapi.SchemeGroupVersion.Group,
 		Version: machineapi.SchemeGroupVersion.Version,
 	}
-	machineSetKind := "MachineSet"
 
 	resourceList, err := discoveryClient.ServerResourcesForGroupVersion(machineSetGv.String())
 	if err != nil {
@@ -174,18 +180,23 @@ func getMachineSetInterface(clientConfig *rest.Config) dynamic.NamespaceableReso
 		os.Exit(1)
 	}
 
-	var machineSetResource string
+	var resource string
 	for _, res := range resourceList.APIResources {
-		if res.Kind == machineSetKind {
-			machineSetResource = res.Name
+		if res.Kind == kind {
+			resource = res.Name
 			break
 		}
 	}
 
-	if machineSetResource == "" {
-		setupLog.Info("cannot find resource for kind " + machineSetKind)
+	if resource == "" {
+		setupLog.Info("cannot find resource for kind " + kind)
 		os.Exit(1)
 	}
+
+	return resource
+}
+
+func getMachineApiInterfaceForResource(clientConfig *rest.Config, resource string) dynamic.NamespaceableResourceInterface {
 
 	dynamicClient, err := dynamic.NewForConfig(clientConfig)
 	if err != nil {
@@ -196,7 +207,7 @@ func getMachineSetInterface(clientConfig *rest.Config) dynamic.NamespaceableReso
 	machineSetGvr := schema.GroupVersionResource{
 		Group:    machineapi.SchemeGroupVersion.Group,
 		Version:  machineapi.SchemeGroupVersion.Version,
-		Resource: machineSetResource,
+		Resource: resource,
 	}
 
 	return dynamicClient.Resource(machineSetGvr)
