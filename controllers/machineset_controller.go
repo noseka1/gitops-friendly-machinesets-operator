@@ -60,6 +60,11 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return reconcile.Result{}, err
 	}
 
+	// Nothing to do if the object is being deleted
+	if isObjectBeingDeleted(logger, machineSet) {
+		return reconcile.Result{}, nil
+	}
+
 	// Should we reconcile this MachineSet object?
 	enabled, tokenName := evaluateAnnotations(logger, machineSet)
 	if !enabled {

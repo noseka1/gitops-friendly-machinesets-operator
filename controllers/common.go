@@ -56,3 +56,11 @@ func processKubernetesError(logger logr.Logger, operation string, err error) err
 	}
 	return nil
 }
+
+func isObjectBeingDeleted(logger logr.Logger, obj *unstructured.Unstructured) bool {
+	if obj.GetDeletionTimestamp() != nil {
+		logger.V(2).Info("Skipping reconciliation of object as it is being deleted.")
+		return true
+	}
+	return false
+}

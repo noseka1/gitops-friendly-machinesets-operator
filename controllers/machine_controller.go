@@ -56,7 +56,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// Nothing to do if the object is being deleted
-	if machine.GetDeletionTimestamp() != nil {
+	if isObjectBeingDeleted(logger, machine) {
 		return reconcile.Result{}, nil
 	}
 
