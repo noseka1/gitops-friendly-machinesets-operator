@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/wI2L/jsondiff"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -39,4 +40,26 @@ func TestHasNodesAvailable(t *testing.T) {
 	bytes, _ := json.Marshal(machineSet)
 	logger.Info(string(bytes))
 	assert.Equal(true, hasNodesAvailable(machineSet))
+}
+
+func TestCreatePatch(t *testing.T) {
+	assert := assert.New(t)
+
+	var machineSet *unstructured.Unstructured
+
+	machineSet = &unstructured.Unstructured{Object: map[string]interface{}{}}
+	unstructured.SetNestedField(machineSet.UnstructuredContent(), "INFRANAME", "metadata", "labels", "machine.openshift.io/cluster-api-cluster")
+	unstructured.SetNestedField(machineSet.UnstructuredContent(), "INFRANAME", "spec", "selector", "matchLabels", "machine.openshift.io/cluster-api-cluster")
+	unstructured.SetNestedField(machineSet.UnstructuredContent(), "INFRANAME-worker-us-east-2c", "spec", "selector", "matchLabels", "machine.openshift.io/cluster-api-machineset")
+
+	patchBytes, err := createPatch(logger, machineSet, "INFRANAME", "MYCLUSTER")
+	assert.Equal(nil, err)
+
+	patch := jsondiff.Patch{}
+	err = json.Unmarshal(patchBytes, &patch)
+
+	expectedPatch := jsondiff.Patch{jsondiff.Operation{Type: "replace", Path: "/metadata/labels/machine.openshift.io~1cluster-api-cluster", Value: "MYCLUSTER"}, jsondiff.Operation{Type: "replace", Path: "/spec/selector/matchLabels/machine.openshift.io~1cluster-api-cluster", Value: "MYCLUSTER"}, jsondiff.Operation{Type: "replace", Path: "/spec/selector/matchLabels/machine.openshift.io~1cluster-api-machineset", Value: "MYCLUSTER-worker-us-east-2c"}}
+	assert.Equal(nil, err)
+	assert.Equal(3, len(patch))
+	assert.Equal(expectedPatch, patch)
 }

@@ -109,14 +109,9 @@ func downscaleInstallerProvisionedMachineSets() {
 }
 
 func (r *MachineSetReconciler) replaceTokens(logger logr.Logger, machineSet *unstructured.Unstructured, tokenName string, req ctrl.Request, ctx context.Context) error {
-	// Extract MachineSet sections that are going to be patched
-	machineSetBytes, err := marshalObjectSections(logger, machineSet)
-	if err != nil {
-		return nil
-	}
 
 	// Compute the JSON patch
-	machineSetPatchBytes, err := createPatch(logger, machineSetBytes, tokenName, r.InfrastructureName)
+	machineSetPatchBytes, err := createPatch(logger, machineSet, tokenName, r.InfrastructureName)
 	if err != nil || len(machineSetPatchBytes) == 0 {
 		return nil
 	}
@@ -132,9 +127,17 @@ func (r *MachineSetReconciler) replaceTokens(logger logr.Logger, machineSet *uns
 	return nil
 }
 
-func createPatch(logger logr.Logger, machineSetBytes []byte, tokenName, infrastructureName string) ([]byte, error) {
+func createPatch(logger logr.Logger, machineSet *unstructured.Unstructured, tokenName, infrastructureName string) ([]byte, error) {
+	// Extract MachineSet sections that are going to be patched
+	machineSetBytes, err := marshalObjectSections(logger, machineSet)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	// Replace the token in the serialized JSON
 	machineSetUpdatedBytes := bytes.ReplaceAll(machineSetBytes, []byte(tokenName), []byte(infrastructureName))
 
+	// Compute the JSON patch
 	jsonPatch, err := jsondiff.CompareJSON(machineSetBytes, machineSetUpdatedBytes)
 	if err != nil {
 		logger.Error(err, "Failed to generate patch.")
