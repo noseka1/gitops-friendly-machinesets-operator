@@ -8,4 +8,7 @@ const (
 	DefaultTokenName = "INFRANAME"
 
 	SpecFieldName = "spec"
+
+	EventTypeNormal   = "Normal"
+	EventReasonDelete = "Delete"
 )

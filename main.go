@@ -47,6 +47,10 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+const (
+	controllerName = "gitops-friendly-machinesets"
+)
+
 func init() {
 	utilruntime.Must(machineapi.Install(scheme))
 
@@ -95,6 +99,8 @@ func main() {
 	if err = (&controllers.MachineSetReconciler{
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
+		ControllerName:      controllerName,
+		EventRecorder:       mgr.GetEventRecorderFor(controllerName),
 		InfrastructureName:  infrastructureName,
 		MachineSetInterface: machineSetInterface,
 	}).SetupWithManager(mgr); err != nil {
@@ -104,6 +110,8 @@ func main() {
 	if err = (&controllers.MachineReconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
+		ControllerName:   controllerName,
+		EventRecorder:    mgr.GetEventRecorderFor(controllerName),
 		MachineInterface: machineInterface,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Machine")

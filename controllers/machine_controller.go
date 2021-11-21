@@ -24,6 +24,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -34,6 +35,8 @@ import (
 type MachineReconciler struct {
 	client.Client
 	Scheme           *runtime.Scheme
+	ControllerName   string
+	EventRecorder    record.EventRecorder
 	MachineInterface dynamic.NamespaceableResourceInterface
 }
 
@@ -52,6 +55,11 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return reconcile.Result{}, err
 	}
 
+	// Nothing to do if the object is being deleted
+	if machine.GetDeletionTimestamp() != nil {
+		return reconcile.Result{}, nil
+	}
+
 	// Should we reconcile this Machine object?
 	enabled, tokenName := evaluateAnnotations(logger, machine)
 	if !enabled {
@@ -64,7 +72,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return reconcile.Result{}, nil
 	}
 
-	// If we can find the token in the Machine object, we are going to delete this object.
+	// If we cannot find the token in the Machine object, we are going to leave this object alone
 	if !bytes.Contains(machineBytes, []byte(tokenName)) {
 		return reconcile.Result{}, nil
 	}
@@ -75,6 +83,8 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		err = processKubernetesError(logger, "delete", err)
 		return reconcile.Result{}, err
 	}
+
+	r.EventRecorder.Event(machine, EventTypeNormal, EventReasonDelete, "Machine object contained unresolved tokens \""+tokenName+"\". This Machine object was probably created while the "+r.ControllerName+" controller was not running. Deleting it.")
 
 	logger.Info("Machine deleted successfully.")
 
