@@ -7,7 +7,16 @@ const (
 
 	DefaultTokenName = "INFRANAME"
 
-	SpecFieldName = "spec"
+	FieldSpec              = "spec"
+	FieldTemplate          = "template"
+	FieldMetadata          = "metadata"
+	FieldLabels            = "labels"
+	FieldStatus            = "status"
+	FieldAvailableReplicas = "availableReplicas"
+
+	AnnotationMachineRole = "machine.openshift.io/cluster-api-machine-role"
+
+	MachineRoleWorker = "worker"
 
 	EventTypeNormal   = "Normal"
 	EventReasonDelete = "Delete"

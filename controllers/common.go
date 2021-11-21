@@ -26,13 +26,13 @@ func evaluateAnnotations(logger logr.Logger, obj *unstructured.Unstructured) (bo
 }
 
 func marshalObjectSections(logger logr.Logger, obj *unstructured.Unstructured) ([]byte, error) {
-	section := unstructured.Unstructured{}
+	section := unstructured.Unstructured{Object: map[string]interface{}{}}
 
 	labelsField := obj.GetLabels()
 	section.SetLabels(labelsField)
 
-	specField, _, _ := unstructured.NestedFieldNoCopy(obj.Object, SpecFieldName)
-	unstructured.SetNestedField(section.Object, specField, SpecFieldName)
+	specField, _, _ := unstructured.NestedFieldNoCopy(obj.UnstructuredContent(), FieldSpec)
+	unstructured.SetNestedField(section.UnstructuredContent(), specField, FieldSpec)
 
 	sectionBytes, err := section.MarshalJSON()
 	if err != nil {

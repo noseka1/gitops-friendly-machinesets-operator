@@ -77,7 +77,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return reconcile.Result{}, nil
 	}
 
-	// Delete the Machine object in Kubernetes
+	// Delete the Machine object in Kubernetes. Object contained tokens that were not replaced.
 	err = r.MachineInterface.Namespace(req.Namespace).Delete(ctx, req.Name, v1.DeleteOptions{})
 	if err != nil {
 		err = processKubernetesError(logger, "delete", err)

@@ -72,10 +72,14 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return reconcile.Result{}, nil
 	}
 
-	// Replace tokens in the MachineSet object and patch the object in Kubernetes
+	// Replace tokens in the MachineSet object
 	err = r.replaceTokens(logger, machineSet, tokenName, req, ctx)
 	if err != nil {
 		return reconcile.Result{}, err
+	}
+
+	if isWorkerMachineSet(machineSet) && hasNodesAvailable(machineSet) {
+		downscaleInstallerProvisionedMachineSets()
 	}
 
 	return ctrl.Result{}, nil
@@ -86,6 +90,22 @@ func (r *MachineSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&machineapi.MachineSet{}).
 		Complete(r)
+}
+
+func isWorkerMachineSet(machineSet *unstructured.Unstructured) bool {
+	role, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), FieldSpec, FieldTemplate, FieldMetadata, FieldLabels, AnnotationMachineRole)
+	roleString, ok := role.(string)
+	return ok && roleString == MachineRoleWorker
+}
+
+func hasNodesAvailable(machineSet *unstructured.Unstructured) bool {
+	availableReplicas, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), FieldStatus, FieldAvailableReplicas)
+	availableReplicasInt, ok := availableReplicas.(int64)
+	return ok && availableReplicasInt > 0
+}
+
+func downscaleInstallerProvisionedMachineSets() {
+
 }
 
 func (r *MachineSetReconciler) replaceTokens(logger logr.Logger, machineSet *unstructured.Unstructured, tokenName string, req ctrl.Request, ctx context.Context) error {
