@@ -60,7 +60,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return reconcile.Result{}, nil
 	}
 
-	// Should we reconcile this Machine object?
+	// Is this object enabled for reconciliation?
 	enabled, tokenName := evaluateAnnotations(logger, machine)
 	if !enabled {
 		return reconcile.Result{}, nil
