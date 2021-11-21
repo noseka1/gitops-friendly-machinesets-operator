@@ -25,6 +25,7 @@ import (
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	"github.com/wI2L/jsondiff"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
@@ -71,26 +72,11 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return reconcile.Result{}, nil
 	}
 
-	// Extract MachineSet sections that are going to be patched
-	machineSetBytes, err := marshalObjectSections(logger, machineSet)
+	// Replace tokens in the MachineSet object and patch the object in Kubernetes
+	err = r.replaceTokens(logger, machineSet, tokenName, req, ctx)
 	if err != nil {
-		return reconcile.Result{}, nil
-	}
-
-	// Compute the JSON patch
-	machineSetPatchBytes, err := createPatch(logger, machineSetBytes, tokenName, r.InfrastructureName)
-	if err != nil || len(machineSetPatchBytes) == 0 {
-		return reconcile.Result{}, nil
-	}
-
-	// Patch the MachineSet object in Kubernetes
-	_, err = r.MachineSetInterface.Namespace(req.Namespace).Patch(ctx, req.Name, types.JSONPatchType, machineSetPatchBytes, v1.PatchOptions{})
-	if err != nil {
-		err = processKubernetesError(logger, "patch", err)
 		return reconcile.Result{}, err
 	}
-
-	logger.Info("MachineSet updated successfully.")
 
 	return ctrl.Result{}, nil
 }
@@ -100,6 +86,30 @@ func (r *MachineSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&machineapi.MachineSet{}).
 		Complete(r)
+}
+
+func (r *MachineSetReconciler) replaceTokens(logger logr.Logger, machineSet *unstructured.Unstructured, tokenName string, req ctrl.Request, ctx context.Context) error {
+	// Extract MachineSet sections that are going to be patched
+	machineSetBytes, err := marshalObjectSections(logger, machineSet)
+	if err != nil {
+		return nil
+	}
+
+	// Compute the JSON patch
+	machineSetPatchBytes, err := createPatch(logger, machineSetBytes, tokenName, r.InfrastructureName)
+	if err != nil || len(machineSetPatchBytes) == 0 {
+		return nil
+	}
+
+	// Patch the MachineSet object in Kubernetes
+	_, err = r.MachineSetInterface.Namespace(req.Namespace).Patch(ctx, req.Name, types.JSONPatchType, machineSetPatchBytes, v1.PatchOptions{})
+	if err != nil {
+		err = processKubernetesError(logger, "patch", err)
+		return err
+	}
+
+	logger.Info("MachineSet updated successfully.")
+	return nil
 }
 
 func createPatch(logger logr.Logger, machineSetBytes []byte, tokenName, infrastructureName string) ([]byte, error) {
