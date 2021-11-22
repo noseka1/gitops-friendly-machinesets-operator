@@ -75,7 +75,7 @@ If you'd like to deploy the operator using your custom built images, substitute 
 $ sed -i "s#image:.*#image: $IMAGE_TAG_BASE-catalog:v$VERSION#" deploy/gitops-friendly-machinesets-catsrc.yaml
 ```
 
-Alternatively, you can leverage pre-built operator images to deploy the operator:
+Alternatively, you can leverage the pre-built operator images to deploy the operator:
 
 ```
 $ sed -i "s#image:.*#image: quay.io/noseka1/gitops-friendly-machinesets-operator-catalog:v0.1.0#" deploy/gitops-friendly-machinesets-catsrc.yaml
