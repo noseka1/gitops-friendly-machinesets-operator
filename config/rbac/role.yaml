@@ -58,3 +58,16 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - infrastructures
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - infrastructures/status
+  verbs:
+  - get
