@@ -74,13 +74,13 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// Replace tokens in the MachineSet object
-	err = r.replaceTokens(logger, machineSet, tokenName, req, ctx)
+	err = r.replaceTokens(ctx, req, machineSet, tokenName)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
 	if isWorkerMachineSet(machineSet) && hasNodesAvailable(machineSet) {
-		err = r.scaleInstallerProvisionedMachineSetsToZero(logger, ctx, req)
+		err = r.scaleInstallerProvisionedMachineSetsToZero(ctx, req)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -119,7 +119,8 @@ func isReplicasGreaterThanZero(machineSet *unstructured.Unstructured) bool {
 	return ok && replicasInt > 0
 }
 
-func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(logger logr.Logger, ctx context.Context, req ctrl.Request) error {
+func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(ctx context.Context, req ctrl.Request) error {
+	logger := log.FromContext(ctx)
 
 	allMachineSets, err := r.MachineSetInterface.Namespace(NamespaceOpenShiftMachineApi).List(ctx, v1.ListOptions{})
 	if err != nil {
@@ -132,8 +133,8 @@ func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(logger
 			nameStartsWith(&machineSet, r.InfrastructureName) &&
 			!isObjectReconciliationEnabled(&machineSet) &&
 			isReplicasGreaterThanZero(&machineSet) {
-			newLogger := log.FromContext(ctx, FieldNamespace, machineSet.GetNamespace(), FieldName, machineSet.GetName())
-			err := r.scaleMachineSetToZero(newLogger, ctx, &machineSet)
+			newLogger := log.FromContext(ctx, "scaled machineset", machineSet.GetNamespace()+"/"+machineSet.GetName())
+			err := r.scaleMachineSetToZero(ctx, newLogger, &machineSet)
 			if err != nil {
 				return err
 			}
@@ -142,7 +143,7 @@ func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(logger
 	return nil
 }
 
-func (r *MachineSetReconciler) scaleMachineSetToZero(logger logr.Logger, ctx context.Context, machineSet *unstructured.Unstructured) error {
+func (r *MachineSetReconciler) scaleMachineSetToZero(ctx context.Context, logger logr.Logger, machineSet *unstructured.Unstructured) error {
 	jsonPatch := jsondiff.Patch{jsondiff.Operation{Type: "replace", Path: "/" + FieldSpec + "/" + FieldReplicas, Value: 0}}
 	jsonPatchBytes, err := json.Marshal(jsonPatch)
 	if err != nil {
@@ -167,7 +168,8 @@ func (r *MachineSetReconciler) scaleMachineSetToZero(logger logr.Logger, ctx con
 	return nil
 }
 
-func (r *MachineSetReconciler) replaceTokens(logger logr.Logger, machineSet *unstructured.Unstructured, tokenName string, req ctrl.Request, ctx context.Context) error {
+func (r *MachineSetReconciler) replaceTokens(ctx context.Context, req ctrl.Request, machineSet *unstructured.Unstructured, tokenName string) error {
+	logger := log.FromContext(ctx)
 
 	// Compute the JSON patch
 	machineSetPatchBytes, err := createPatch(logger, machineSet, tokenName, r.InfrastructureName)
