@@ -42,6 +42,38 @@ func TestHasNodesAvailable(t *testing.T) {
 	assert.Equal(true, hasNodesAvailable(machineSet))
 }
 
+func TestNameStartsWith(t *testing.T) {
+	assert := assert.New(t)
+
+	var machineSet *unstructured.Unstructured
+
+	machineSet = &unstructured.Unstructured{}
+	assert.Equal(false, nameStartsWith(machineSet, "mycluster"))
+
+	machineSet = &unstructured.Unstructured{Object: map[string]interface{}{}}
+	unstructured.SetNestedField(machineSet.UnstructuredContent(), "mycluster", "metadata", "name")
+	assert.Equal(false, nameStartsWith(machineSet, "myprefix"))
+	assert.Equal(true, nameStartsWith(machineSet, "my"))
+	assert.Equal(true, nameStartsWith(machineSet, "mycluster"))
+}
+
+func TestIsReplicasGreaterThanZero(t *testing.T) {
+	assert := assert.New(t)
+
+	var machineSet *unstructured.Unstructured
+
+	machineSet = &unstructured.Unstructured{}
+	assert.Equal(false, isReplicasGreaterThanZero(machineSet))
+
+	machineSet = &unstructured.Unstructured{Object: map[string]interface{}{}}
+	unstructured.SetNestedField(machineSet.UnstructuredContent(), int64(0), "spec", "replicas")
+	assert.Equal(false, isReplicasGreaterThanZero(machineSet))
+
+	machineSet = &unstructured.Unstructured{Object: map[string]interface{}{}}
+	unstructured.SetNestedField(machineSet.UnstructuredContent(), int64(1), "spec", "replicas")
+	assert.Equal(true, isReplicasGreaterThanZero(machineSet))
+}
+
 func TestCreatePatch(t *testing.T) {
 	assert := assert.New(t)
 

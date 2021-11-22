@@ -7,12 +7,15 @@ const (
 
 	DefaultTokenName = "INFRANAME"
 
+	FieldName              = "name"
+	FieldNamespace         = "namespace"
 	FieldSpec              = "spec"
 	FieldTemplate          = "template"
 	FieldMetadata          = "metadata"
 	FieldLabels            = "labels"
 	FieldStatus            = "status"
 	FieldAvailableReplicas = "availableReplicas"
+	FieldReplicas          = "replicas"
 
 	AnnotationMachineRole = "machine.openshift.io/cluster-api-machine-role"
 
@@ -20,4 +23,7 @@ const (
 
 	EventTypeNormal   = "Normal"
 	EventReasonDelete = "Delete"
+	EventReasonScale  = "Scale"
+
+	NamespaceOpenShiftMachineApi = "openshift-machine-api"
 )

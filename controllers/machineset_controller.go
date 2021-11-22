@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"strings"
 
 	"github.com/go-logr/logr"
 	machineapi "github.com/openshift/api/machine/v1beta1"
@@ -79,7 +80,10 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	if isWorkerMachineSet(machineSet) && hasNodesAvailable(machineSet) {
-		downscaleInstallerProvisionedMachineSets()
+		err = r.scaleInstallerProvisionedMachineSetsToZero(logger, ctx, req)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -104,8 +108,62 @@ func hasNodesAvailable(machineSet *unstructured.Unstructured) bool {
 	return ok && availableReplicasInt > 0
 }
 
-func downscaleInstallerProvisionedMachineSets() {
+func nameStartsWith(machineSet *unstructured.Unstructured, prefix string) bool {
+	name := machineSet.GetName()
+	return strings.HasPrefix(name, prefix)
+}
 
+func isReplicasGreaterThanZero(machineSet *unstructured.Unstructured) bool {
+	replicas, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), FieldSpec, FieldReplicas)
+	replicasInt, ok := replicas.(int64)
+	return ok && replicasInt > 0
+}
+
+func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(logger logr.Logger, ctx context.Context, req ctrl.Request) error {
+
+	allMachineSets, err := r.MachineSetInterface.Namespace(NamespaceOpenShiftMachineApi).List(ctx, v1.ListOptions{})
+	if err != nil {
+		logger.Error(err, "Failed to retrieve MachineSets from namespace "+NamespaceOpenShiftMachineApi)
+		return err
+	}
+
+	for _, machineSet := range allMachineSets.Items {
+		if isWorkerMachineSet(&machineSet) &&
+			nameStartsWith(&machineSet, r.InfrastructureName) &&
+			!isObjectReconciliationEnabled(&machineSet) &&
+			isReplicasGreaterThanZero(&machineSet) {
+			newLogger := log.FromContext(ctx, FieldNamespace, machineSet.GetNamespace(), FieldName, machineSet.GetName())
+			err := r.scaleMachineSetToZero(newLogger, ctx, &machineSet)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (r *MachineSetReconciler) scaleMachineSetToZero(logger logr.Logger, ctx context.Context, machineSet *unstructured.Unstructured) error {
+	jsonPatch := jsondiff.Patch{jsondiff.Operation{Type: "replace", Path: "/" + FieldSpec + "/" + FieldReplicas, Value: 0}}
+	jsonPatchBytes, err := json.Marshal(jsonPatch)
+	if err != nil {
+		logger.Error(err, "Failed to marshal patch.")
+		return nil
+	}
+
+	name := machineSet.GetName()
+	namespace := machineSet.GetNamespace()
+
+	// Patch the MachineSet object in Kubernetes
+	_, err = r.MachineSetInterface.Namespace(namespace).Patch(ctx, name, types.JSONPatchType, jsonPatchBytes, v1.PatchOptions{})
+	if err != nil {
+		err = processKubernetesError(logger, "patch", err)
+		return err
+	}
+
+	r.EventRecorder.Event(machineSet, EventTypeNormal, EventReasonScale, "MachineSet object provisioned by OpenShift installer scaled down to zero.")
+
+	logger.Info("MachineSet scaled down to zero successfully.")
+	return nil
 }
 
 func (r *MachineSetReconciler) replaceTokens(logger logr.Logger, machineSet *unstructured.Unstructured, tokenName string, req ctrl.Request, ctx context.Context) error {
@@ -123,7 +181,7 @@ func (r *MachineSetReconciler) replaceTokens(logger logr.Logger, machineSet *uns
 		return err
 	}
 
-	logger.Info("MachineSet updated successfully.")
+	logger.Info("Tokens \"" + tokenName + "\" in MachineSet replaced successfully.")
 	return nil
 }
 

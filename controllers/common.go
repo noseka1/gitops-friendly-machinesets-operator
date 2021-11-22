@@ -6,23 +6,26 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func evaluateAnnotations(logger logr.Logger, obj *unstructured.Unstructured) (bool, string) {
+func isObjectReconciliationEnabled(obj *unstructured.Unstructured) bool {
 	annotations := obj.GetAnnotations()
 	enabledString, enabledFound := annotations[AnnotationEnabled]
-	tokenName, tokenNameFound := annotations[AnnotationTokenName]
+	return enabledFound && enabledString == "true"
+}
 
-	if !enabledFound || enabledString != "true" {
+func evaluateAnnotations(logger logr.Logger, obj *unstructured.Unstructured) (bool, string) {
+	if !isObjectReconciliationEnabled(obj) {
 		logger.V(2).Info("Skipping object. Annotation that allows object patching was not found.")
 		return false, ""
 	}
 
-	enabled := true
+	annotations := obj.GetAnnotations()
+	tokenName, tokenNameFound := annotations[AnnotationTokenName]
 
 	if !tokenNameFound {
 		tokenName = DefaultTokenName
 	}
 
-	return enabled, tokenName
+	return true, tokenName
 }
 
 func marshalObjectSections(logger logr.Logger, obj *unstructured.Unstructured) ([]byte, error) {

@@ -29,7 +29,26 @@ func setup() {
 	logger = zap.New(zap.Level(zapcore.Level(-10)))
 	ctrl.SetLogger(logger)
 }
+func TestIsObjectReconciliationEnabled(t *testing.T) {
+	assert := assert.New(t)
 
+	var input *unstructured.Unstructured
+
+	input = &unstructured.Unstructured{}
+	assert.Equal(false, isObjectReconciliationEnabled(input))
+
+	input = &unstructured.Unstructured{}
+	input.SetAnnotations(map[string]string{
+		AnnotationEnabled: "false",
+	})
+	assert.Equal(false, isObjectReconciliationEnabled(input))
+
+	input = &unstructured.Unstructured{}
+	input.SetAnnotations(map[string]string{
+		AnnotationEnabled: "true",
+	})
+	assert.Equal(true, isObjectReconciliationEnabled(input))
+}
 func TestEvaluateAnnotations(t *testing.T) {
 	assert := assert.New(t)
 
