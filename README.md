@@ -67,10 +67,16 @@ $ podman push $IMAGE_TAG_BASE-catalog:v$VERSION
 
 ## Deploying the Operator
 
-Substitute the name of your catalog image in `deploy/gitops-friendly-machinesets-catsrc.yaml`:
+If you'd like to deploy the operator using your custom built images, substitute the name of your catalog image in `deploy/gitops-friendly-machinesets-catsrc.yaml`:
 
 ```
 $ sed -i "s#image:.*#image: $IMAGE_TAG_BASE-catalog:v$VERSION#" deploy/gitops-friendly-machinesets-catsrc.yaml
+```
+
+Alternatively, you can leverage pre-built catalog image:
+
+```
+$ sed -i "s#image:.*#image: quay.io/noseka1/gitops-friendly-machinesets-operator-catalog:v0.1.0#" deploy/gitops-friendly-machinesets-catsrc.yaml
 ```
 
 Deploy the operator:
