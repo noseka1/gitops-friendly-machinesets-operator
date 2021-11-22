@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/noseka1/gitops-friendly-machinesets-controller/controllers"
+	"github.com/noseka1/gitops-friendly-machinesets-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
 

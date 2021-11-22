@@ -1,4 +1,4 @@
-module github.com/noseka1/gitops-friendly-machinesets-controller
+module github.com/noseka1/gitops-friendly-machinesets-operator
 
 go 1.16
 

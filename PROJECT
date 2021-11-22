@@ -4,8 +4,8 @@ layout:
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
-projectName: gitops-friendly-machinesets-controller
-repo: github.com/noseka1/gitops-friendly-machinesets-controller
+projectName: gitops-friendly-machinesets-operator
+repo: github.com/noseka1/gitops-friendly-machinesets-operator
 resources:
 - controller: true
   domain: openshift.io
