@@ -29,6 +29,6 @@ const (
 
 	NamespaceOpenShiftMachineApi = "openshift-machine-api"
 
-	DeleteMachineMinAgeSeconds = 15
+	DeleteMachineMinAgeSeconds = 60
 	DeleteMachineRequeueAfter  = 20 * time.Second
 )
