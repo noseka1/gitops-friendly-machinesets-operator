@@ -1,0 +1,10 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: gitops-friendly-machinesets
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: gitops-friendly-machinesets-operator
+  source: gitops-friendly-machinesets
+  sourceNamespace: gitops-friendly-machinesets

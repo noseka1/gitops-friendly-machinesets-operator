@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: gitops-friendly-machinesets
+
+resources:
+- gitops-friendly-machinesets-catsrc.yaml
+- gitops-friendly-machinesets-ns.yaml
+- gitops-friendly-machinesets-og.yaml
+- gitops-friendly-machinesets-sub.yaml
