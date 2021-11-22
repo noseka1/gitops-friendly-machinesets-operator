@@ -19,9 +19,13 @@ package controllers
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"time"
 
+	"github.com/go-logr/logr"
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
@@ -77,18 +81,38 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return reconcile.Result{}, nil
 	}
 
-	// Delete the Machine object in Kubernetes. Object contained tokens that were not replaced.
-	err = r.MachineInterface.Namespace(req.Namespace).Delete(ctx, req.Name, v1.DeleteOptions{})
-	if err != nil {
-		err = processKubernetesError(logger, "delete", err)
-		return reconcile.Result{}, err
+	if deleteMachineNow(logger, machine) {
+		// Delete the Machine object in Kubernetes. Object contained tokens that were not replaced.
+		err = r.MachineInterface.Namespace(req.Namespace).Delete(ctx, req.Name, v1.DeleteOptions{})
+		if err != nil {
+			err = processKubernetesError(logger, "delete", err)
+			return reconcile.Result{}, err
+		}
+
+		msg := "Machine contains unresolved tokens \"" + tokenName + "\". Deleting it."
+		r.EventRecorder.Event(machine, EventTypeNormal, EventReasonDelete, msg)
+		logger.Info(msg)
+		return ctrl.Result{}, nil
 	}
 
-	msg := "Machine contains unresolved tokens \"" + tokenName + "\". Deleting it."
-	r.EventRecorder.Event(machine, EventTypeNormal, EventReasonDelete, msg)
-	logger.Info(msg)
+	// Requeue the request
+	return ctrl.Result{RequeueAfter: DeleteMachineRequeueAfter}, nil
+}
 
-	return ctrl.Result{}, nil
+// Check if we should send the delete request at this time. If the Machine was created based on the MachineSet
+// that our controller haven't updated on time, we want to delay the deletion of this Machine.
+// We want to give machine-api-controller enough time to notice the MachineSet update. After we delete the Machine,
+// a new Machine will immediately be created. Leave enough time so that the replacement Machine is created based
+// on the udpated MachineSet.
+func deleteMachineNow(logger logr.Logger, machine *unstructured.Unstructured) bool {
+	now := v1.NewTime(time.Now())
+	creationTime := machine.GetCreationTimestamp().Time
+	age := int(now.Sub(creationTime).Seconds())
+	result := age > DeleteMachineMinAgeSeconds
+	if !result {
+		logger.V(3).Info("Not deleting machine that is only " + fmt.Sprint(age) + " secs old.")
+	}
+	return result
 }
 
 // SetupWithManager sets up the controller with the Manager.

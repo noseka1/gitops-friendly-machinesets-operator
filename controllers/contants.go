@@ -1,5 +1,7 @@
 package controllers
 
+import "time"
+
 const (
 	AnnotationBase      = "gitops-friendly-machinesets.redhat-cop.io"
 	AnnotationEnabled   = AnnotationBase + "/enabled"
@@ -26,4 +28,7 @@ const (
 	EventReasonScale  = "Scale"
 
 	NamespaceOpenShiftMachineApi = "openshift-machine-api"
+
+	DeleteMachineMinAgeSeconds = 15
+	DeleteMachineRequeueAfter  = 20 * time.Second
 )
