@@ -84,9 +84,9 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return reconcile.Result{}, err
 	}
 
-	r.EventRecorder.Event(machine, EventTypeNormal, EventReasonDelete, "Machine object contained unresolved tokens \""+tokenName+"\". This Machine object was probably created while the "+r.ControllerName+" controller was not running. Deleting it.")
-
-	logger.Info("Machine deleted successfully.")
+	msg := "Machine contains unresolved tokens \"" + tokenName + "\". Deleting it."
+	r.EventRecorder.Event(machine, EventTypeNormal, EventReasonDelete, msg)
+	logger.Info(msg)
 
 	return ctrl.Result{}, nil
 }

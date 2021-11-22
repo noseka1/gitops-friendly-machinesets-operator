@@ -160,9 +160,10 @@ func (r *MachineSetReconciler) scaleMachineSetToZero(logger logr.Logger, ctx con
 		return err
 	}
 
-	r.EventRecorder.Event(machineSet, EventTypeNormal, EventReasonScale, "MachineSet object provisioned by OpenShift installer scaled down to zero.")
+	msg := "Scaling MachineSet provisioned by OpenShift installer to zero."
+	r.EventRecorder.Event(machineSet, EventTypeNormal, EventReasonScale, msg)
+	logger.Info(msg)
 
-	logger.Info("MachineSet scaled down to zero successfully.")
 	return nil
 }
 
