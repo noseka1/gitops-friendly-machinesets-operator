@@ -4,7 +4,7 @@ This operator allows the user to manage MachineSets without the need to supply t
 
 ## Building Container Images (Optional)
 
-This section provides instructions for building your custom operator images. If you'd like to deploy the operator using a pre-built images, you can skip this section.
+This section provides instructions for building your custom operator images. If you'd like to deploy the operator using pre-built images, you can skip this section.
 
 Set the version you want to build. See `git tag` for available versions:
 
