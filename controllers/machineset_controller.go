@@ -47,9 +47,9 @@ type MachineSetReconciler struct {
 	MachineSetInterface dynamic.NamespaceableResourceInterface
 }
 
-//+kubebuilder:rbac:groups=machine.openshift.io.redhat.com,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=machine.openshift.io.redhat.com,resources=machinesets/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=machine.openshift.io.redhat.com,resources=machinesets/finalizers,verbs=update
+//+kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets/finalizers,verbs=update
 func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 

@@ -1,4 +1,4 @@
-domain: redhat.com
+domain: openshift.io
 layout:
 - go.kubebuilder.io/v3
 plugins:
@@ -8,13 +8,13 @@ projectName: gitops-friendly-machinesets-controller
 repo: github.com/noseka1/gitops-friendly-machinesets-controller
 resources:
 - controller: true
-  domain: redhat.com
-  group: machine.openshift.io
+  domain: openshift.io
+  group: machine
   kind: MachineSet
   version: v1beta1
 - controller: true
-  domain: redhat.com
-  group: machine.openshift.io
+  domain: openshift.io
+  group: machine
   kind: Machine
   version: v1beta1
 version: "3"

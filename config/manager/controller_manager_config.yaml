@@ -8,4 +8,4 @@ webhook:
   port: 9443
 leaderElection:
   leaderElect: true
-  resourceName: 123eec1d.redhat.com
+  resourceName: 123eec1d.openshift.io
