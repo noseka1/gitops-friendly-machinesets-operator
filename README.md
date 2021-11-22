@@ -64,3 +64,17 @@ Push catalog image to registry:
 ```
 $ podman push $IMAGE_TAG_BASE-catalog:v$VERSION
 ```
+
+## Deploying the Operator
+
+Substitute the name of your catalog image in `deploy/gitops-friendly-machinesets-catsrc.yaml`:
+
+```
+$ sed -i "s#image:.*#image: $IMAGE_TAG_BASE-catalog:v$VERSION#" deploy/gitops-friendly-machinesets-catsrc.yaml
+```
+
+Deploy the operator:
+
+```
+$ oc apply -k deploy
+```
