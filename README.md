@@ -10,6 +10,12 @@ Set the version you want to build. See `git tag` for available versions:
 $ VERSION=0.1.0
 ```
 
+Check out the tag:
+
+```
+$ git checkout $VERSION
+```
+
 Set the custom image name. Replace the image name below with your own:
 
 ```
