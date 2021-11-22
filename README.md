@@ -4,10 +4,16 @@ This operator allows the user to manage MachineSets without the need to supply t
 
 ## Building Container Images
 
+Set the version you want to build. See `git tag` for available versions:
+
+```
+$ VERSION=0.1.0
+```
+
 Set the custom image name. Replace the image name below with your own:
 
 ```
-$ IMG=quay.io/noseka1/gitops-friendly-machinesets-operator:latest
+$ IMG=quay.io/noseka1/gitops-friendly-machinesets-operator:$VERSION
 $ IMAGE_TAG_BASE=quay.io/noseka1/gitops-friendly-machinesets-operator
 ```
 
@@ -38,5 +44,17 @@ $ make bundle-build IMAGE_TAG_BASE=$IMAGE_TAG_BASE
 Push bundle image to registry:
 
 ```
-$ podman push $IMAGE_TAG_BASE-bundle:v0.0.1
+$ podman push $IMAGE_TAG_BASE-bundle:v$VERSION
+```
+
+Build catalog container image:
+
+```
+$ make catalog-build IMAGE_TAG_BASE=$IMAGE_TAG_BASE
+```
+
+Push catalog image to registry:
+
+```
+$ podman push $IMAGE_TAG_BASE-catalog:v$VERSION
 ```
