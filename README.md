@@ -86,3 +86,80 @@ Deploy the operator:
 ```
 $ oc apply -k deploy
 ```
+
+## Using the Operator
+
+Create a MachineSet specific to your underlying infrastructure provider. For example, a MachineSet for AWS may look like the one below. Note that all occurences of the infrastructure name are marked using the INFRANAME token. Operator will replace this INFRANAME token with the real infrastructure name specific to the cluster after the MachineSet manifest is applied.
+
+Also note the two annotations that are required for the operator to take any action on this MachineSet:
+1. Set `metadata.annotations.gitops-friendly-machinesets.redhat-cop.io/enabled: "true"`
+2. Set `spec.template.metadata.annotations.gitops-friendly-machinesets.redhat-cop.io/enabled: "true"`
+
+```
+apiVersion: machine.openshift.io/v1beta1
+kind: MachineSet
+metadata:
+  annotations:
+    gitops-friendly-machinesets.redhat-cop.io/enabled: "true"
+  labels:
+    machine.openshift.io/cluster-api-cluster: INFRANAME
+  name: mymachineset
+  namespace: openshift-machine-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      machine.openshift.io/cluster-api-cluster: INFRANAME
+      machine.openshift.io/cluster-api-machineset: mymachineset
+  template:
+    metadata:
+      annotations:
+        gitops-friendly-machinesets.redhat-cop.io/enabled: "true"
+      labels:
+        machine.openshift.io/cluster-api-cluster: INFRANAME
+        machine.openshift.io/cluster-api-machine-role: worker
+        machine.openshift.io/cluster-api-machine-type: worker
+        machine.openshift.io/cluster-api-machineset: mymachineset
+    spec:
+      metadata: {}
+      providerSpec:
+        value:
+          ami:
+            id: ami-03d9208319c96db0c
+          apiVersion: awsproviderconfig.openshift.io/v1beta1
+          blockDevices:
+          - ebs:
+              encrypted: true
+              iops: 0
+              kmsKey:
+                arn: ""
+              volumeSize: 120
+              volumeType: gp2
+          credentialsSecret:
+            name: aws-cloud-credentials
+          deviceIndex: 0
+          iamInstanceProfile:
+            id: INFRANAME-worker-profile
+          instanceType: m5.xlarge
+          kind: AWSMachineProviderConfig
+          metadata:
+            creationTimestamp: null
+          placement:
+            availabilityZone: us-east-2a
+            region: us-east-2
+          securityGroups:
+          - filters:
+            - name: tag:Name
+              values:
+              - INFRANAME-worker-sg
+          subnet:
+            filters:
+            - name: tag:Name
+              values:
+              - INFRANAME-private-us-east-2a
+          tags:
+          - name: kubernetes.io/cluster/INFRANAME
+            value: owned
+          userDataSecret:
+            name: worker-user-data
+```
