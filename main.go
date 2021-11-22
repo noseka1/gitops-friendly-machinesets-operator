@@ -33,6 +33,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -52,6 +53,7 @@ const (
 )
 
 func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(machineapi.Install(scheme))
 
 	//+kubebuilder:scaffold:scheme
