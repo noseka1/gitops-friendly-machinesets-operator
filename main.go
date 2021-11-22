@@ -83,18 +83,18 @@ func main() {
 		LeaderElectionID:       "123eec1d.openshift.io",
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "Unable to start manager")
 		os.Exit(1)
 	}
 
 	restConfig := mgr.GetConfig()
 
-	infrastructureName := getInfrastructureName(restConfig)
+	infrastructureName := retrieveInfrastructureName(restConfig)
 
-	machineSetResource := getMachineApiResourceForKind(restConfig, "MachineSet")
-	machineSetInterface := getMachineApiInterfaceForResource(restConfig, machineSetResource)
-	machineResource := getMachineApiResourceForKind(restConfig, "Machine")
-	machineInterface := getMachineApiInterfaceForResource(restConfig, machineResource)
+	machineSetResource := retrieveMachineApiResourceForKind(restConfig, "MachineSet")
+	machineSetInterface := retrieveMachineApiInterfaceForResource(restConfig, machineSetResource)
+	machineResource := retrieveMachineApiResourceForKind(restConfig, "Machine")
+	machineInterface := retrieveMachineApiInterfaceForResource(restConfig, machineResource)
 
 	if err = (&controllers.MachineSetReconciler{
 		Client:              mgr.GetClient(),
@@ -104,7 +104,7 @@ func main() {
 		InfrastructureName:  infrastructureName,
 		MachineSetInterface: machineSetInterface,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "MachineSet")
+		setupLog.Error(err, "Unable to create controller", "controller", "MachineSet")
 		os.Exit(1)
 	}
 	if err = (&controllers.MachineReconciler{
@@ -114,37 +114,37 @@ func main() {
 		EventRecorder:    mgr.GetEventRecorderFor(controllerName),
 		MachineInterface: machineInterface,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Machine")
+		setupLog.Error(err, "Unable to create controller", "controller", "Machine")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
+		setupLog.Error(err, "Unable to set up health check")
 		os.Exit(1)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
+		setupLog.Error(err, "Unable to set up ready check")
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager")
+	setupLog.Info("Starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
+		setupLog.Error(err, "Problem running manager")
 		os.Exit(1)
 	}
 }
 
-// Retrieve unique infrastructure name of this OpenShift cluster (something like mycluster-jfnx7). It is equivalent of:
-// oc get infrastructure cluster -o jsonpath='{.status.infrastructureName}'
-func getInfrastructureName(clientConfig *rest.Config) string {
+// Retrieve unique infrastructure name of this OpenShift cluster (something like mycluster-jfnx7).
+// The code performs an equivalent of: oc get infrastructure cluster -o jsonpath='{.status.infrastructureName}'
+func retrieveInfrastructureName(clientConfig *rest.Config) string {
 
 	configScheme := runtime.NewScheme()
 	utilruntime.Must(configapi.Install(configScheme))
 
 	kubeClient, err := client.New(clientConfig, client.Options{Scheme: configScheme})
 	if err != nil {
-		setupLog.Error(err, "failed to create kube client")
+		setupLog.Error(err, "Failed to create kube client")
 		os.Exit(1)
 	}
 
@@ -155,7 +155,7 @@ func getInfrastructureName(clientConfig *rest.Config) string {
 	infraObject := &configapi.Infrastructure{}
 
 	if err = kubeClient.Get(context.TODO(), infraObjectName, infraObject); err != nil {
-		setupLog.Error(err, "unable retrieve object "+infraObjectName.String()+" of kind Infrastructure")
+		setupLog.Error(err, "Unable retrieve object "+infraObjectName.String()+" of kind Infrastructure")
 		os.Exit(1)
 	}
 	infraName := infraObject.Status.InfrastructureName
@@ -165,15 +165,15 @@ func getInfrastructureName(clientConfig *rest.Config) string {
 		os.Exit(1)
 	}
 
-	setupLog.Info("Infrastructure name of this cluster is " + infraName)
+	setupLog.Info("Infrastructure name is " + infraName)
 
 	return infraName
 }
 
-func getMachineApiResourceForKind(clientConfig *rest.Config, kind string) string {
+func retrieveMachineApiResourceForKind(clientConfig *rest.Config, kind string) string {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(clientConfig)
 	if err != nil {
-		setupLog.Error(err, "unable to create a discovery client")
+		setupLog.Error(err, "Unable to create a discovery client")
 		os.Exit(1)
 	}
 
@@ -184,7 +184,7 @@ func getMachineApiResourceForKind(clientConfig *rest.Config, kind string) string
 
 	resourceList, err := discoveryClient.ServerResourcesForGroupVersion(machineSetGv.String())
 	if err != nil {
-		setupLog.Error(err, "unable to retrieve resouce list for "+machineSetGv.String())
+		setupLog.Error(err, "Unable to retrieve resouce list for "+machineSetGv.String())
 		os.Exit(1)
 	}
 
@@ -197,18 +197,18 @@ func getMachineApiResourceForKind(clientConfig *rest.Config, kind string) string
 	}
 
 	if resource == "" {
-		setupLog.Info("cannot find resource for kind " + kind)
+		setupLog.Info("Cannot find resource for kind " + kind)
 		os.Exit(1)
 	}
 
 	return resource
 }
 
-func getMachineApiInterfaceForResource(clientConfig *rest.Config, resource string) dynamic.NamespaceableResourceInterface {
+func retrieveMachineApiInterfaceForResource(clientConfig *rest.Config, resource string) dynamic.NamespaceableResourceInterface {
 
 	dynamicClient, err := dynamic.NewForConfig(clientConfig)
 	if err != nil {
-		setupLog.Error(err, "unable to create a dynamic client")
+		setupLog.Error(err, "Unable to create a dynamic client")
 		os.Exit(1)
 	}
 
