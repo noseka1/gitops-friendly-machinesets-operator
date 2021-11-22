@@ -16,7 +16,7 @@ Check out the tag:
 $ git checkout $VERSION
 ```
 
-Set the custom image name. Replace the image name below with your own:
+Set the custom image names. Replace the image names below with your own:
 
 ```
 $ IMG=quay.io/noseka1/gitops-friendly-machinesets-operator:$VERSION
