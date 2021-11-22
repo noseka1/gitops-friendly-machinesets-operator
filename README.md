@@ -87,13 +87,15 @@ Deploy the operator:
 $ oc apply -k deploy
 ```
 
-## Using the Operator
+## Creating a MachineSet
 
-Create a MachineSet specific to your underlying infrastructure provider. For example, a MachineSet for AWS may look like the one below. Note that all occurences of the infrastructure name are marked using the INFRANAME token. Operator will replace this INFRANAME token with the real infrastructure name specific to the cluster after the MachineSet manifest is applied.
+Create a MachineSet specific to your underlying infrastructure provider. For example, a MachineSet for AWS and vSphere may look like the ones below. Note that all occurences of the infrastructure name are marked using the INFRANAME token. Operator will replace this INFRANAME token with the real infrastructure name after the MachineSet manifest is applied.
 
-Also note the two annotations that are required for the operator to take any action on this MachineSet:
+Also note the two annotations that are required for the operator to take any action on the MachineSet:
 1. Set `metadata.annotations.gitops-friendly-machinesets.redhat-cop.io/enabled: "true"`
 2. Set `spec.template.metadata.annotations.gitops-friendly-machinesets.redhat-cop.io/enabled: "true"`
+
+### Sample AWS MachineSet
 
 ```
 apiVersion: machine.openshift.io/v1beta1
@@ -162,4 +164,60 @@ spec:
             value: owned
           userDataSecret:
             name: worker-user-data
+```
+
+### Sample vSphere MachineSet
+
+```
+apiVersion: machine.openshift.io/v1beta1
+kind: MachineSet
+metadata:
+  annotations:
+    gitops-friendly-machinesets.redhat-cop.io/enabled: "true"
+  labels:
+    machine.openshift.io/cluster-api-cluster: INFRANAME
+  name: mymachineset
+  namespace: openshift-machine-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      machine.openshift.io/cluster-api-cluster: INFRANAME
+      machine.openshift.io/cluster-api-machineset: mymachineset
+  template:
+    metadata:
+      annotations:
+        gitops-friendly-machinesets.redhat-cop.io/enabled: "true"
+      labels:
+        machine.openshift.io/cluster-api-cluster: INFRANAME
+        machine.openshift.io/cluster-api-machine-role: worker
+        machine.openshift.io/cluster-api-machine-type: worker
+        machine.openshift.io/cluster-api-machineset: mymachineset
+    spec:
+      metadata: {}
+      providerSpec:
+        value:
+          apiVersion: vsphereprovider.openshift.io/v1beta1
+          credentialsSecret:
+            name: vsphere-cloud-credentials
+          diskGiB: 120
+          kind: VSphereMachineProviderSpec
+          memoryMiB: 32768
+          metadata:
+            creationTimestamp: null
+          network:
+            devices:
+            - networkName: OpenShift Network
+          numCPUs: 4
+          numCoresPerSocket: 2
+          snapshot: ""
+          template: INFRANAME-rhcos
+          userDataSecret:
+            name: worker-user-data
+          workspace:
+            datacenter: Datacenter
+            datastore: datastore1
+            folder: /Datacenter/vm/mycluster
+            resourcePool: /Datacenter/host/Cluster/Resources
+            server: photon-machine.lab.example.com
 ```
