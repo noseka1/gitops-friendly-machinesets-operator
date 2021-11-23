@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: machineset-demo
+  namespace: openshift-gitops
+spec:
+  destination:
+    name: in-cluster
+  project: default
+  source:
+    path: docs/samples/vsphere/manifests
+    repoURL: https://github.com/noseka1/gitops-friendly-machinesets-operator
+    targetRevision: master
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+  ignoreDifferences:
+  - group: machine.openshift.io
+    kind: MachineSet
+    namespace: openshift-machine-api
+    jsonPointers:
+    - /metadata/labels/machine.openshift.io~1cluster-api-cluster
+    - /spec/selector/matchLabels/machine.openshift.io~1cluster-api-cluster
+    - /spec/template/metadata/labels/machine.openshift.io~1cluster-api-cluster
+    - /spec/template/spec/providerSpec/value/template

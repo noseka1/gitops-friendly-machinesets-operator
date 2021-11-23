@@ -1,0 +1,51 @@
+apiVersion: machine.openshift.io/v1beta1
+kind: MachineSet
+metadata:
+  annotations:
+    gitops-friendly-machinesets.redhat-cop.io/enabled: "true"
+  labels:
+    machine.openshift.io/cluster-api-cluster: INFRANAME
+  name: mymachineset
+  namespace: openshift-machine-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      machine.openshift.io/cluster-api-cluster: INFRANAME
+      machine.openshift.io/cluster-api-machineset: mymachineset
+  template:
+    metadata:
+      annotations:
+        gitops-friendly-machinesets.redhat-cop.io/enabled: "true"
+      labels:
+        machine.openshift.io/cluster-api-cluster: INFRANAME
+        machine.openshift.io/cluster-api-machine-role: worker
+        machine.openshift.io/cluster-api-machine-type: worker
+        machine.openshift.io/cluster-api-machineset: mymachineset
+    spec:
+      metadata: {}
+      providerSpec:
+        value:
+          apiVersion: vsphereprovider.openshift.io/v1beta1
+          credentialsSecret:
+            name: vsphere-cloud-credentials
+          diskGiB: 120
+          kind: VSphereMachineProviderSpec
+          memoryMiB: 32768
+          metadata:
+            creationTimestamp: null
+          network:
+            devices:
+            - networkName: OpenShift Network
+          numCPUs: 4
+          numCoresPerSocket: 2
+          snapshot: ""
+          template: INFRANAME-rhcos
+          userDataSecret:
+            name: worker-user-data
+          workspace:
+            datacenter: Datacenter
+            datastore: datastore1
+            folder: /Datacenter/vm/mycluster
+            resourcePool: /Datacenter/host/Cluster/Resources
+            server: photon-machine.lab.example.com
