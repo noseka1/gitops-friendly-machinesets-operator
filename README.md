@@ -45,7 +45,13 @@ The operator is tested on AWS and vSphere OpenShift clusters, however, it should
 
 This section provides instructions for building your custom operator images. If you'd like to deploy the operator using pre-built images, you can continue to the next section.
 
-Set the version you want to build. See `git tag` for available versions:
+### Prerequisites
+
+The operator is built using [operator-sdk](https://sdk.operatorframework.io/docs/). Make sure you have operator-sdk installed on your machine including the additional prerequisites as described in the [Installation Guide](https://sdk.operatorframework.io/docs/building-operators/golang/installation/).
+
+### Building Images
+
+Choose the operator version you want to build. See `git tag` for the list of available versions. Set the version variable:
 
 ```
 $ VERSION=0.1.0
