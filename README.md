@@ -89,36 +89,36 @@ $ oc apply -k deploy
 
 ## Creating a MachineSet
 
-Create a MachineSet specific to your underlying infrastructure provider. For example, a MachineSet for AWS and vSphere may look like the ones below. Note that all occurences of the infrastructure name are marked using the INFRANAME token. Operator will replace this INFRANAME token with the real infrastructure name after the MachineSet manifest is applied.
+Create a MachineSet specific to your underlying infrastructure provider. For example, a MachineSet for AWS and vSphere may look like the ones below. Note that all occurences of the infrastructure name are marked using the `INFRANAME` token. Operator will replace this `INFRANAME` token with the real infrastructure name after the MachineSet manifest is applied.
 
-Also note the two annotations that are required for the operator to take any action on the MachineSet:
+Also note that you must add two annotations that are required for the operator to take any action on the MachineSet:
 1. Set `metadata.annotations.gitops-friendly-machinesets.redhat-cop.io/enabled: "true"`
 2. Set `spec.template.metadata.annotations.gitops-friendly-machinesets.redhat-cop.io/enabled: "true"`
 
 ### Sample AWS MachineSet
 
-```
+<pre>
 apiVersion: machine.openshift.io/v1beta1
 kind: MachineSet
 metadata:
-  annotations:
-    gitops-friendly-machinesets.redhat-cop.io/enabled: "true"
+  <b>annotations:
+    gitops-friendly-machinesets.redhat-cop.io/enabled: "true"</b>    
   labels:
-    machine.openshift.io/cluster-api-cluster: INFRANAME
+    machine.openshift.io/cluster-api-cluster: <b>INFRANAME</b>
   name: mymachineset
   namespace: openshift-machine-api
 spec:
   replicas: 3
   selector:
     matchLabels:
-      machine.openshift.io/cluster-api-cluster: INFRANAME
+      machine.openshift.io/cluster-api-cluster: <b>INFRANAME</b>
       machine.openshift.io/cluster-api-machineset: mymachineset
   template:
     metadata:
-      annotations:
-        gitops-friendly-machinesets.redhat-cop.io/enabled: "true"
+      <b>annotations:
+        gitops-friendly-machinesets.redhat-cop.io/enabled: "true"</b>
       labels:
-        machine.openshift.io/cluster-api-cluster: INFRANAME
+        machine.openshift.io/cluster-api-cluster: <b>INFRANAME</b>
         machine.openshift.io/cluster-api-machine-role: worker
         machine.openshift.io/cluster-api-machine-type: worker
         machine.openshift.io/cluster-api-machineset: mymachineset
@@ -141,7 +141,7 @@ spec:
             name: aws-cloud-credentials
           deviceIndex: 0
           iamInstanceProfile:
-            id: INFRANAME-worker-profile
+            id: <b>INFRANAME</b>-worker-profile
           instanceType: m5.xlarge
           kind: AWSMachineProviderConfig
           metadata:
@@ -153,43 +153,43 @@ spec:
           - filters:
             - name: tag:Name
               values:
-              - INFRANAME-worker-sg
+              - <b>INFRANAME</b>-worker-sg
           subnet:
             filters:
             - name: tag:Name
               values:
-              - INFRANAME-private-us-east-2a
+              - <b>INFRANAME</b>-private-us-east-2a
           tags:
-          - name: kubernetes.io/cluster/INFRANAME
+          - name: kubernetes.io/cluster/<b>INFRANAME</b>
             value: owned
           userDataSecret:
             name: worker-user-data
-```
+</pre>
 
 ### Sample vSphere MachineSet
 
-```
+<pre>
 apiVersion: machine.openshift.io/v1beta1
 kind: MachineSet
 metadata:
-  annotations:
-    gitops-friendly-machinesets.redhat-cop.io/enabled: "true"
+  <b>annotations:
+    gitops-friendly-machinesets.redhat-cop.io/enabled: "true"</b>
   labels:
-    machine.openshift.io/cluster-api-cluster: INFRANAME
+    machine.openshift.io/cluster-api-cluster: <b>INFRANAME</b>
   name: mymachineset
   namespace: openshift-machine-api
 spec:
   replicas: 3
   selector:
     matchLabels:
-      machine.openshift.io/cluster-api-cluster: INFRANAME
+      machine.openshift.io/cluster-api-cluster: <b>INFRANAME</b>
       machine.openshift.io/cluster-api-machineset: mymachineset
   template:
     metadata:
-      annotations:
-        gitops-friendly-machinesets.redhat-cop.io/enabled: "true"
+      <b>annotations:
+        gitops-friendly-machinesets.redhat-cop.io/enabled: "true"</b>
       labels:
-        machine.openshift.io/cluster-api-cluster: INFRANAME
+        machine.openshift.io/cluster-api-cluster: <b>INFRANAME</b>
         machine.openshift.io/cluster-api-machine-role: worker
         machine.openshift.io/cluster-api-machine-type: worker
         machine.openshift.io/cluster-api-machineset: mymachineset
@@ -211,7 +211,7 @@ spec:
           numCPUs: 4
           numCoresPerSocket: 2
           snapshot: ""
-          template: INFRANAME-rhcos
+          template: <b>INFRANAME</b>-rhcos
           userDataSecret:
             name: worker-user-data
           workspace:
@@ -220,4 +220,4 @@ spec:
             folder: /Datacenter/vm/mycluster
             resourcePool: /Datacenter/host/Cluster/Resources
             server: photon-machine.lab.example.com
-```
+</pre>
