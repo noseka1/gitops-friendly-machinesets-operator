@@ -37,6 +37,8 @@ The GitOps-Friendly MachineSets Operator helps in two steps:
 
 2. As soon as the first node created by your MachineSet becomes available, the operator will scale the installer-provisioned MachineSets to zero. They cannot be managed by GitOps anyway, so let's not use them.
 
+:exclamation: The GitOps-Friendly MachineSets Operator is meant to be installed immediately after the OpenShift cluster deployment (day 2) and before any critical workloads are running on the cluster. **The operator will scale the installer-provisioned MachineSets to zero which will delete all the respective worker Machines.** Future versions of the operator will allow disabling this behavior.
+
 The operator is tested on AWS and vSphere OpenShift clusters, however, it should work with any underlying infrastructure provider.
 
 ## Building Container Images (Optional)
