@@ -87,7 +87,7 @@ Deploy the operator:
 $ oc apply -k deploy
 ```
 
-## Creating a MachineSet
+## Creating MachineSets
 
 Create a MachineSet specific to your underlying infrastructure provider. For example, a MachineSet for AWS and vSphere may look like the ones below. Note that all occurences of the infrastructure name are marked using the `INFRANAME` token. Operator will replace this `INFRANAME` token with the real infrastructure name after the MachineSet manifest is applied.
 
