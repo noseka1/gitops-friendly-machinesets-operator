@@ -29,7 +29,7 @@ metadata:
   ...
 </pre>
 
-## How does GitOps-Friendly MachineSets Operator help?
+## How Does the GitOps-Friendly MachineSets Operator Help?
 
 The GitOps-Friendly MachineSets Operator helps in two steps:
 
