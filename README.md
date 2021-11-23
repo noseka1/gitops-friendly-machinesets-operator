@@ -31,13 +31,13 @@ metadata:
 
 ## How Does the GitOps-Friendly MachineSets Operator Help?
 
-The GitOps-Friendly MachineSets Operator helps in two steps:
+The GitOps-Friendly MachineSets Operator is supposed to be installed right after the OpenShift cluster has been deployed (day 2). It helps in two steps:
 
 1. The operator allows you to create MachineSets without the need to supply the cluster-specific infrastructure name. Instead, you insert a special token `INFRANAME` into your MachineSet definition, which will be replaced with the real infrastructure name by the operator.
 
-2. As soon as the first node created by your MachineSet becomes available, the operator will scale the installer-provisioned MachineSets to zero. They cannot be managed by GitOps anyway, so let's not use them.
+2. As soon as the first node created by your MachineSet becomes available, the operator will scale the installer-provisioned MachineSets down to zero. They cannot be managed by GitOps anyway, so let's not use them.
 
-:exclamation: The GitOps-Friendly MachineSets Operator is meant to be installed immediately after the OpenShift cluster deployment (day 2) and before any critical workloads are running on the cluster. **The operator will scale the installer-provisioned MachineSets to zero which will delete all the respective worker Machines.** Future versions of the operator will allow disabling this behavior so that the operator can be safely deployed on the existing OpenShift clusters.
+:exclamation: The GitOps-Friendly MachineSets Operator is meant to be installed right after the OpenShift cluster deployment and before any critical workloads are running on the cluster. **The operator will scale the installer-provisioned MachineSets down to zero which will wipe out the respective worker Machines from the cluster.** Future versions of the operator will allow disabling this behavior so that the operator can be safely deployed on the existing OpenShift clusters.
 
 The operator is tested on AWS and vSphere OpenShift clusters, however, it should work with any underlying infrastructure provider.
 
