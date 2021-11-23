@@ -296,12 +296,12 @@ spec:
     - /spec/selector/matchLabels/machine.openshift.io~1cluster-api-cluster
     - /spec/template/metadata/labels/machine.openshift.io~1cluster-api-cluster
     - /spec/template/spec/providerSpec/value/iamInstanceProfile/id
-    # The jqPathExpressions below doesn't seem to be supported by openshift-gitops 1.3.1 operator,
+    # The jqPathExpressions below don't seem to be supported by openshift-gitops 1.3.1 operator,
     # use these jsonPointers for the meantime:
     - /spec/template/spec/providerSpec/value/securityGroups/0/filters/0
     - /spec/template/spec/providerSpec/value/subnet/filters/0/values/0
     - /spec/template/spec/providerSpec/value/tags/0
-    # These jqPathExpressions doesn't seem to work in openshift-gitops 1.3.1. They would be preferable
+    # These jqPathExpressions don't seem to work in openshift-gitops 1.3.1. They would be preferable
     # as they allow for more precise filtering.
     jqPathExpressions:
     - .spec.template.spec.providerSpec.value.securityGroups[].filters[] | select(.name == "tag:Name") | .values[0]
