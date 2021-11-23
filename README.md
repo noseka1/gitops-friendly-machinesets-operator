@@ -260,3 +260,82 @@ spec:
             resourcePool: /Datacenter/host/Cluster/Resources
             server: photon-machine.lab.example.com
 </pre>
+
+## Managing MachineSets Using Argo CD
+
+To allow Argo CD to sync the MachineSet manifests correctly, we need to instruct Argo CD to ignore the MachineSet modifications that were made by the GitOps-Friendly MachineSet Operator. We can use the `ignoreDifferences` configuration option as described in [Diffing Customization](https://argo-cd.readthedocs.io/en/stable/user-guide/diffing/). See the examples down below.
+
+![Argo CD MachineSet](docs/images/argocd_machineset_synced.png "Argo CD MachineSet")
+
+### Sample AWS Argo CD Application
+
+<pre>
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: machineset-demo
+  namespace: openshift-gitops
+spec:
+  destination:
+    name: in-cluster
+  project: default
+  source:
+    path: docs/samples/aws/manifests
+    repoURL: https://github.com/noseka1/gitops-friendly-machinesets-operator
+    targetRevision: master
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+  <b>ignoreDifferences:
+  - group: machine.openshift.io
+    kind: MachineSet
+    namespace: openshift-machine-api
+    jsonPointers:
+    - /metadata/labels/machine.openshift.io~1cluster-api-cluster
+    - /spec/selector/matchLabels/machine.openshift.io~1cluster-api-cluster
+    - /spec/template/metadata/labels/machine.openshift.io~1cluster-api-cluster
+    - /spec/template/spec/providerSpec/value/iamInstanceProfile/id
+    # The jqPathExpressions below doesn't seem to be supported by openshift-gitops 1.3.1 operator,
+    # use these jsonPointers for the meantime:
+    - /spec/template/spec/providerSpec/value/securityGroups/0/filters/0
+    - /spec/template/spec/providerSpec/value/subnet/filters/0/values/0
+    - /spec/template/spec/providerSpec/value/tags/0
+    # These jqPathExpressions doesn't seem to work in openshift-gitops 1.3.1. They would be preferable
+    # as they allow for more precise filtering.
+    jqPathExpressions:
+    - .spec.template.spec.providerSpec.value.securityGroups[].filters[] | select(.name == "tag:Name") | .values[0]
+    - .spec.template.spec.providerSpec.value.subnet.filters[] | select(.name == "tag:Name") | .values[0]
+    - .spec.template.spec.providerSpec.value.tags[0]</b>
+</pre>
+
+### Sample vSphere Argo CD Application
+
+<pre>
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: machineset-demo
+  namespace: openshift-gitops
+spec:
+  destination:
+    name: in-cluster
+  project: default
+  source:
+    path: docs/samples/vsphere/manifests
+    repoURL: https://github.com/noseka1/gitops-friendly-machinesets-operator
+    targetRevision: master
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+  <b>ignoreDifferences:
+  - group: machine.openshift.io
+    kind: MachineSet
+    namespace: openshift-machine-api
+    jsonPointers:
+    - /metadata/labels/machine.openshift.io~1cluster-api-cluster
+    - /spec/selector/matchLabels/machine.openshift.io~1cluster-api-cluster
+    - /spec/template/metadata/labels/machine.openshift.io~1cluster-api-cluster
+    - /spec/template/spec/providerSpec/value/template</b>
+</pre>
