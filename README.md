@@ -35,7 +35,7 @@ The GitOps-Friendly MachineSets Operator helps in two steps:
 
 1. The operator allows you to create MachineSets without the need to supply the cluster-specific infrastructure name. Instead, you insert a special token `INFRANAME` into your MachineSet definition, which will be replaced with the real infrastructure name by the operator.
 
-2. As soon as the first node created by your MachineSet becomes available, the operator will scale the installer-provisioned MachineSets to zero. They cannot be managed by GitOps anyway.
+2. As soon as the first node created by your MachineSet becomes available, the operator will scale the installer-provisioned MachineSets to zero. They cannot be managed by GitOps anyway, so let's not use them.
 
 The operator is tested on AWS and vSphere OpenShift clusters, however, it should work with any underlying infrastructure provider.
 
