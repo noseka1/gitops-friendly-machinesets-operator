@@ -149,7 +149,7 @@ apiVersion: machine.openshift.io/v1beta1
 kind: MachineSet
 metadata:
   <b>annotations:
-    gitops-friendly-machinesets.redhat-cop.io/enabled: "true"</b>    
+    gitops-friendly-machinesets.redhat-cop.io/enabled: "true"</b>
   labels:
     machine.openshift.io/cluster-api-cluster: <b>INFRANAME</b>
   name: mymachineset
