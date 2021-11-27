@@ -68,7 +68,7 @@ $ git checkout $VERSION
 Set the custom image names. Replace the image names below with your own:
 
 ```
-$ IMG=quay.io/noseka1/gitops-friendly-machinesets-operator:$VERSION
+$ IMG=quay.io/noseka1/gitops-friendly-machinesets-operator:v$VERSION
 $ IMAGE_TAG_BASE=quay.io/noseka1/gitops-friendly-machinesets-operator
 ```
 
