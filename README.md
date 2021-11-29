@@ -56,7 +56,7 @@ The operator is built using [operator-sdk](https://sdk.operatorframework.io/docs
 Choose the operator version you want to build. See `git tag` for the list of available versions. Set the version variable:
 
 ```
-$ VERSION=0.1.0
+$ VERSION=0.2.0
 ```
 
 Check out the tag:
@@ -125,7 +125,7 @@ $ sed -i "s#image:.*#image: $IMAGE_TAG_BASE-catalog:v$VERSION#" deploy/gitops-fr
 Alternatively, you can leverage the pre-built operator images to deploy the operator:
 
 ```
-$ sed -i "s#image:.*#image: quay.io/noseka1/gitops-friendly-machinesets-operator-catalog:v0.1.0#" deploy/gitops-friendly-machinesets-catsrc.yaml
+$ sed -i "s#image:.*#image: quay.io/noseka1/gitops-friendly-machinesets-operator-catalog:v0.2.0#" deploy/gitops-friendly-machinesets-catsrc.yaml
 ```
 
 Deploy the operator:

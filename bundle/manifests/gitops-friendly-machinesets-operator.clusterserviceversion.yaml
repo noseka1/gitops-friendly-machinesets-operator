@@ -6,7 +6,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.13.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-  name: gitops-friendly-machinesets-operator.v0.1.0
+  name: gitops-friendly-machinesets-operator.v0.2.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -217,4 +217,4 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat Community of Practice
-  version: 0.1.0
+  version: 0.2.0
