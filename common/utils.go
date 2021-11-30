@@ -42,7 +42,7 @@ func MarshalObjectSections(logger logr.Logger, obj *unstructured.Unstructured) (
 
 	sectionBytes, err := section.MarshalJSON()
 	if err != nil {
-		logger.Error(err, "Failed to marshall object sections to JSON")
+		logger.Error(err, "Failed to marshal object sections to JSON")
 	}
 	return sectionBytes, err
 }
