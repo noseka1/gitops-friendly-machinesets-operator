@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/go-logr/logr"
-	"github.com/wI2L/jsondiff"
+	jsonpatch "gomodules.xyz/jsonpatch/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -57,7 +57,7 @@ func CreatePatch(logger logr.Logger, machineSet *unstructured.Unstructured, toke
 	machineSetUpdatedBytes := bytes.ReplaceAll(machineSetBytes, []byte(tokenName), []byte(infrastructureName))
 
 	// Compute the JSON patch
-	jsonPatch, err := jsondiff.CompareJSON(machineSetBytes, machineSetUpdatedBytes)
+	jsonPatch, err := jsonpatch.CreatePatch(machineSetBytes, machineSetUpdatedBytes)
 	if err != nil {
 		logger.Error(err, "Failed to generate patch.")
 		return []byte{}, err

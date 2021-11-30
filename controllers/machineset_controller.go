@@ -24,7 +24,7 @@ import (
 	"github.com/go-logr/logr"
 	comm "github.com/noseka1/gitops-friendly-machinesets-operator/common"
 	machineapi "github.com/openshift/api/machine/v1beta1"
-	"github.com/wI2L/jsondiff"
+	jsonpatch "gomodules.xyz/jsonpatch/v2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -145,7 +145,7 @@ func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(ctx co
 }
 
 func (r *MachineSetReconciler) scaleMachineSetToZero(ctx context.Context, logger logr.Logger, machineSet *unstructured.Unstructured) error {
-	jsonPatch := jsondiff.Patch{jsondiff.Operation{Type: "replace", Path: "/" + comm.FieldSpec + "/" + comm.FieldReplicas, Value: 0}}
+	jsonPatch := []jsonpatch.Operation{{Operation: "replace", Path: "/" + comm.FieldSpec + "/" + comm.FieldReplicas, Value: 0}}
 	jsonPatchBytes, err := json.Marshal(jsonPatch)
 	if err != nil {
 		logger.Error(err, "Failed to marshal patch.")

@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
-	"github.com/wI2L/jsondiff"
 	"go.uber.org/zap/zapcore"
+	jsonpatch "gomodules.xyz/jsonpatch/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -91,10 +91,19 @@ func TestCreatePatch(t *testing.T) {
 	patchBytes, err := CreatePatch(logger, machineSet, "INFRANAME", "MYCLUSTER")
 	assert.Equal(nil, err)
 
-	patch := jsondiff.Patch{}
+	patch := []jsonpatch.Operation{}
 	err = json.Unmarshal(patchBytes, &patch)
 
-	expectedPatch := jsondiff.Patch{jsondiff.Operation{Type: "replace", Path: "/metadata/labels/machine.openshift.io~1cluster-api-cluster", Value: "MYCLUSTER"}, jsondiff.Operation{Type: "replace", Path: "/spec/selector/matchLabels/machine.openshift.io~1cluster-api-cluster", Value: "MYCLUSTER"}, jsondiff.Operation{Type: "replace", Path: "/spec/selector/matchLabels/machine.openshift.io~1cluster-api-machineset", Value: "MYCLUSTER-worker-us-east-2c"}}
+	expectedPatch := []jsonpatch.Operation{
+		{Operation: "replace",
+			Path:  "/metadata/labels/machine.openshift.io~1cluster-api-cluster",
+			Value: "MYCLUSTER"},
+		{Operation: "replace",
+			Path:  "/spec/selector/matchLabels/machine.openshift.io~1cluster-api-cluster",
+			Value: "MYCLUSTER"},
+		{Operation: "replace",
+			Path:  "/spec/selector/matchLabels/machine.openshift.io~1cluster-api-machineset",
+			Value: "MYCLUSTER-worker-us-east-2c"}}
 	assert.Equal(nil, err)
 	assert.Equal(3, len(patch))
 	assert.Equal(expectedPatch, patch)
