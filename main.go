@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/noseka1/gitops-friendly-machinesets-operator/controllers"
+	"github.com/noseka1/gitops-friendly-machinesets-operator/webhooks"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -119,10 +120,9 @@ func main() {
 		setupLog.Error(err, "Unable to create controller", "controller", "Machine")
 		os.Exit(1)
 	}
-	if err = (&machinev1beta1.MachineSet{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "MachineSet")
-		os.Exit(1)
-	}
+
+	(&webhooks.MachineSetWebhook{InfrastructureName: infrastructureName}).SetupWithManager(mgr)
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

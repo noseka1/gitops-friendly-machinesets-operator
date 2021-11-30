@@ -17,12 +17,12 @@ limitations under the License.
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"strings"
 
 	"github.com/go-logr/logr"
+	comm "github.com/noseka1/gitops-friendly-machinesets-operator/common"
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	"github.com/wI2L/jsondiff"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,7 +68,7 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// Is this object enabled for reconciliation?
-	enabled, tokenName := evaluateAnnotations(logger, machineSet)
+	enabled, tokenName := comm.EvaluateAnnotations(logger, machineSet)
 	if !enabled {
 		return reconcile.Result{}, nil
 	}
@@ -79,6 +79,7 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return reconcile.Result{}, err
 	}
 
+	// Managed MachineSet has at least one node available
 	if isWorkerMachineSet(machineSet) && hasNodesAvailable(machineSet) {
 		err = r.scaleInstallerProvisionedMachineSetsToZero(ctx, req)
 		if err != nil {
@@ -97,13 +98,13 @@ func (r *MachineSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func isWorkerMachineSet(machineSet *unstructured.Unstructured) bool {
-	role, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), FieldSpec, FieldTemplate, FieldMetadata, FieldLabels, AnnotationMachineRole)
+	role, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), comm.FieldSpec, comm.FieldTemplate, comm.FieldMetadata, comm.FieldLabels, comm.AnnotationMachineRole)
 	roleString, ok := role.(string)
-	return ok && roleString == MachineRoleWorker
+	return ok && roleString == comm.MachineRoleWorker
 }
 
 func hasNodesAvailable(machineSet *unstructured.Unstructured) bool {
-	availableReplicas, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), FieldStatus, FieldAvailableReplicas)
+	availableReplicas, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), comm.FieldStatus, comm.FieldAvailableReplicas)
 	availableReplicasInt, ok := availableReplicas.(int64)
 	return ok && availableReplicasInt > 0
 }
@@ -114,7 +115,7 @@ func nameStartsWith(machineSet *unstructured.Unstructured, prefix string) bool {
 }
 
 func isReplicasGreaterThanZero(machineSet *unstructured.Unstructured) bool {
-	replicas, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), FieldSpec, FieldReplicas)
+	replicas, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), comm.FieldSpec, comm.FieldReplicas)
 	replicasInt, ok := replicas.(int64)
 	return ok && replicasInt > 0
 }
@@ -122,16 +123,16 @@ func isReplicasGreaterThanZero(machineSet *unstructured.Unstructured) bool {
 func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(ctx context.Context, req ctrl.Request) error {
 	logger := log.FromContext(ctx)
 
-	allMachineSets, err := r.MachineSetInterface.Namespace(NamespaceOpenShiftMachineApi).List(ctx, v1.ListOptions{})
+	allMachineSets, err := r.MachineSetInterface.Namespace(comm.NamespaceOpenShiftMachineApi).List(ctx, v1.ListOptions{})
 	if err != nil {
-		logger.Error(err, "Failed to retrieve MachineSets from namespace "+NamespaceOpenShiftMachineApi)
+		logger.Error(err, "Failed to retrieve MachineSets from namespace "+comm.NamespaceOpenShiftMachineApi)
 		return err
 	}
 
 	for _, machineSet := range allMachineSets.Items {
 		if isWorkerMachineSet(&machineSet) &&
 			nameStartsWith(&machineSet, r.InfrastructureName) &&
-			!isObjectReconciliationEnabled(&machineSet) &&
+			!comm.IsObjectReconciliationEnabled(&machineSet) &&
 			isReplicasGreaterThanZero(&machineSet) {
 			newLogger := log.FromContext(ctx, "scaled machineset", machineSet.GetNamespace()+"/"+machineSet.GetName())
 			err := r.scaleMachineSetToZero(ctx, newLogger, &machineSet)
@@ -144,7 +145,7 @@ func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(ctx co
 }
 
 func (r *MachineSetReconciler) scaleMachineSetToZero(ctx context.Context, logger logr.Logger, machineSet *unstructured.Unstructured) error {
-	jsonPatch := jsondiff.Patch{jsondiff.Operation{Type: "replace", Path: "/" + FieldSpec + "/" + FieldReplicas, Value: 0}}
+	jsonPatch := jsondiff.Patch{jsondiff.Operation{Type: "replace", Path: "/" + comm.FieldSpec + "/" + comm.FieldReplicas, Value: 0}}
 	jsonPatchBytes, err := json.Marshal(jsonPatch)
 	if err != nil {
 		logger.Error(err, "Failed to marshal patch.")
@@ -162,7 +163,7 @@ func (r *MachineSetReconciler) scaleMachineSetToZero(ctx context.Context, logger
 	}
 
 	msg := "Scaling MachineSet provisioned by OpenShift installer to zero."
-	r.EventRecorder.Event(machineSet, EventTypeNormal, EventReasonScale, msg)
+	r.EventRecorder.Event(machineSet, comm.EventTypeNormal, comm.EventReasonScale, msg)
 	logger.Info(msg)
 
 	return nil
@@ -172,7 +173,7 @@ func (r *MachineSetReconciler) replaceTokens(ctx context.Context, req ctrl.Reque
 	logger := log.FromContext(ctx)
 
 	// Compute the JSON patch
-	machineSetPatchBytes, err := createPatch(logger, machineSet, tokenName, r.InfrastructureName)
+	machineSetPatchBytes, err := comm.CreatePatch(logger, machineSet, tokenName, r.InfrastructureName)
 	if err != nil || len(machineSetPatchBytes) == 0 {
 		return nil
 	}
@@ -186,37 +187,4 @@ func (r *MachineSetReconciler) replaceTokens(ctx context.Context, req ctrl.Reque
 
 	logger.Info("Tokens \"" + tokenName + "\" in MachineSet replaced successfully.")
 	return nil
-}
-
-func createPatch(logger logr.Logger, machineSet *unstructured.Unstructured, tokenName, infrastructureName string) ([]byte, error) {
-	// Extract MachineSet sections that are going to be patched
-	machineSetBytes, err := marshalObjectSections(logger, machineSet)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	// Replace the token in the serialized JSON
-	machineSetUpdatedBytes := bytes.ReplaceAll(machineSetBytes, []byte(tokenName), []byte(infrastructureName))
-
-	// Compute the JSON patch
-	jsonPatch, err := jsondiff.CompareJSON(machineSetBytes, machineSetUpdatedBytes)
-	if err != nil {
-		logger.Error(err, "Failed to generate patch.")
-		return []byte{}, err
-	}
-
-	if len(jsonPatch) == 0 {
-		logger.V(2).Info("Nothing to patch for object.")
-		return []byte{}, nil
-	}
-
-	jsonPatchBytes, err := json.Marshal(jsonPatch)
-	if err != nil {
-		logger.Error(err, "Failed to marshal patch.")
-		return []byte{}, err
-	}
-
-	logger.V(3).Info("Generated JSON Patch: " + string(jsonPatchBytes))
-
-	return jsonPatchBytes, nil
 }

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	comm "github.com/noseka1/gitops-friendly-machinesets-operator/common"
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -65,13 +66,13 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// Is this object enabled for reconciliation?
-	enabled, tokenName := evaluateAnnotations(logger, machine)
+	enabled, tokenName := comm.EvaluateAnnotations(logger, machine)
 	if !enabled {
 		return reconcile.Result{}, nil
 	}
 
 	// Extract Machine sections that should have been patched
-	machineBytes, err := marshalObjectSections(logger, machine)
+	machineBytes, err := comm.MarshalObjectSections(logger, machine)
 	if err != nil {
 		return reconcile.Result{}, nil
 	}
@@ -82,7 +83,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	if deleteMachineNow(logger, machine) {
-		// Delete the Machine object in Kubernetes. Object contained tokens that were not replaced.
+		// Delete the Machine object in Kubernetes. Object contains tokens that were not replaced.
 		err = r.MachineInterface.Namespace(req.Namespace).Delete(ctx, req.Name, v1.DeleteOptions{})
 		if err != nil {
 			err = processKubernetesError(logger, "delete", err)
@@ -90,13 +91,13 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 
 		msg := "Machine contains unresolved tokens \"" + tokenName + "\". Deleting it."
-		r.EventRecorder.Event(machine, EventTypeNormal, EventReasonDelete, msg)
+		r.EventRecorder.Event(machine, comm.EventTypeNormal, comm.EventReasonDelete, msg)
 		logger.Info(msg)
 		return ctrl.Result{}, nil
 	}
 
 	// Requeue the request
-	return ctrl.Result{RequeueAfter: DeleteMachineRequeueAfter}, nil
+	return ctrl.Result{RequeueAfter: comm.DeleteMachineRequeueAfter}, nil
 }
 
 // Check if we should send the delete request at this time. If the Machine was created based on the MachineSet
@@ -108,7 +109,7 @@ func deleteMachineNow(logger logr.Logger, machine *unstructured.Unstructured) bo
 	now := v1.NewTime(time.Now())
 	creationTime := machine.GetCreationTimestamp().Time
 	age := int(now.Sub(creationTime).Seconds())
-	result := age > DeleteMachineMinAgeSeconds
+	result := age > comm.DeleteMachineMinAgeSeconds
 	if !result {
 		logger.V(3).Info("Not deleting machine that is only " + fmt.Sprint(age) + " secs old.")
 	}
