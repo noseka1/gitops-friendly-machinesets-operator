@@ -15,7 +15,7 @@ webhooks:
       namespace: system
       path: /mutate-machine-openshift-io-v1beta1-machineset
   failurePolicy: Fail
-  name: gitops-friendly-machinesets
+  name: gitops-friendly-machinesets.kb.io
   rules:
   - apiGroups:
     - machine.openshift.io

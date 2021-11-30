@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-//+kubebuilder:webhook:path=/mutate-machine-openshift-io-v1beta1-machineset,mutating=true,failurePolicy=fail,sideEffects=None,groups=machine.openshift.io,resources=machinesets,verbs=create;update,versions=v1beta1,name=gitops-friendly-machinesets,admissionReviewVersions={v1,v1beta1}
+//+kubebuilder:webhook:path=/mutate-machine-openshift-io-v1beta1-machineset,mutating=true,failurePolicy=fail,sideEffects=None,groups=machine.openshift.io,resources=machinesets,verbs=create;update,versions=v1beta1,name=gitops-friendly-machinesets.kb.io,admissionReviewVersions={v1,v1beta1}
 
 const (
 	webhookPath string = "/mutate-machine-openshift-io-v1beta1-machineset"

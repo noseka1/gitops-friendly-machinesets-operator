@@ -229,7 +229,7 @@ spec:
     containerPort: 443
     deploymentName: gitops-friendly-machinesets-controller-manager
     failurePolicy: Fail
-    generateName: gitops-friendly-machinesets
+    generateName: gitops-friendly-machinesets.kb.io
     rules:
     - apiGroups:
       - machine.openshift.io
