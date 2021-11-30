@@ -347,3 +347,41 @@ spec:
     - /spec/template/metadata/labels/machine.openshift.io~1cluster-api-cluster
     - /spec/template/spec/providerSpec/value/template</b>
 </pre>
+
+## Troubleshooting
+
+Increase the operator log level to get more verbose logs. Get the installed csv:
+
+```
+$ oc get csv -n gitops-friendly-machinesets
+NAME                                          DISPLAY                       VERSION   REPLACES   PHASE
+gitops-friendly-machinesets-operator.v0.1.0   GitOps-Friendly MachineSets   0.1.0                Succeeded
+```
+
+Edit the csv:
+
+```
+$ oc edit csv -n gitops-friendly-machinesets gitops-friendly-machinesets-operator.v0.1.0
+```
+
+Find the command-line parameters passed to the operator and add `-zap-log-level=5` like this:
+
+<pre>
+             - args:
+                - --health-probe-bind-address=:8081
+                - --metrics-bind-address=127.0.0.1:8080
+                - --leader-elect
+                <b>- -zap-log-level=5</b>
+                command:
+                - /manager
+</pre>
+
+This change in csv will propagate to the `gitops-friendly-machinesets-controller-manager` deployment object and finally to the pod. After the operator pod restarts, you should see more verbose logs:
+
+```
+$ oc logs \
+    -f \
+    -n gitops-friendly-machinesets \
+    -c manager \
+    gitops-friendly-machinesets-controller-manager-f6b784bdb-8xts7
+```
