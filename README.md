@@ -385,3 +385,5 @@ $ oc logs \
     -c manager \
     gitops-friendly-machinesets-controller-manager-f6b784bdb-8xts7
 ```
+
+Remember to set the operator log level back after you are done troubleshooting.
