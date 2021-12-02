@@ -77,7 +77,8 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return reconcile.Result{}, err
 	}
 
-	// Managed MachineSet has at least one node available
+	// If the managed MachineSet has at least one node available, check and scale the
+	// installer-provisioned MachineSets to zero
 	if isWorkerMachineSet(machineSet) && hasNodesAvailable(machineSet) {
 		err = r.scaleInstallerProvisionedMachineSetsToZero(ctx, req)
 		if err != nil {
@@ -118,6 +119,8 @@ func isReplicasGreaterThanZero(machineSet *unstructured.Unstructured) bool {
 	return ok && replicasInt > 0
 }
 
+// Look up all the installer-provisioned MachineSets and scale them to zero replicas.
+// This will remove all the installer-provisioned Machines from the cluster.
 func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(ctx context.Context, req ctrl.Request) error {
 	logger := log.FromContext(ctx)
 
@@ -144,6 +147,7 @@ func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(ctx co
 }
 
 func (r *MachineSetReconciler) scaleMachineSetToZero(ctx context.Context, logger logr.Logger, machineSet *unstructured.Unstructured) error {
+	// Prepare the JSON patch to set replicas = 0
 	jsonPatch := []jsonpatch.Operation{{Operation: "replace", Path: "/" + comm.FieldSpec + "/" + comm.FieldReplicas, Value: 0}}
 	jsonPatchBytes, err := json.Marshal(jsonPatch)
 	if err != nil {
