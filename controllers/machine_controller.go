@@ -28,7 +28,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,10 +38,9 @@ import (
 // MachineReconciler reconciles a Machine object
 type MachineReconciler struct {
 	client.Client
-	Scheme           *runtime.Scheme
-	ControllerName   string
-	EventRecorder    record.EventRecorder
-	MachineInterface dynamic.NamespaceableResourceInterface
+	Scheme         *runtime.Scheme
+	ControllerName string
+	EventRecorder  record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machines,verbs=get;list;watch;create;update;patch;delete
@@ -54,7 +52,8 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	logger.V(2).Info("Reconciling object.")
 
 	// Fetch the Machine object from Kubernetes
-	machine, err := r.MachineInterface.Namespace(req.Namespace).Get(ctx, req.Name, v1.GetOptions{})
+	machine := &unstructured.Unstructured{}
+	err := r.Get(ctx, req.NamespacedName, machine)
 	if err != nil {
 		err = processKubernetesError(logger, "get", err)
 		return reconcile.Result{}, err
@@ -82,9 +81,10 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return reconcile.Result{}, nil
 	}
 
+	// Machine object contains tokens that were not replaced. Will delete this Machine eventually
 	if deleteMachineNow(logger, machine) {
-		// Delete the Machine object in Kubernetes. Object contains tokens that were not replaced.
-		err = r.MachineInterface.Namespace(req.Namespace).Delete(ctx, req.Name, v1.DeleteOptions{})
+		// Delete the Machine object in Kubernetes.
+		err = r.Delete(ctx, machine, &client.DeleteOptions{})
 		if err != nil {
 			err = processKubernetesError(logger, "delete", err)
 			return reconcile.Result{}, err

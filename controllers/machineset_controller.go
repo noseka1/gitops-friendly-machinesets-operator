@@ -25,11 +25,9 @@ import (
 	comm "github.com/noseka1/gitops-friendly-machinesets-operator/common"
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	jsonpatch "gomodules.xyz/jsonpatch/v2"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,11 +38,10 @@ import (
 // MachineSetReconciler reconciles a MachineSet object
 type MachineSetReconciler struct {
 	client.Client
-	Scheme              *runtime.Scheme
-	ControllerName      string
-	EventRecorder       record.EventRecorder
-	InfrastructureName  string
-	MachineSetInterface dynamic.NamespaceableResourceInterface
+	Scheme             *runtime.Scheme
+	ControllerName     string
+	EventRecorder      record.EventRecorder
+	InfrastructureName string
 }
 
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
@@ -56,7 +53,8 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	logger.V(2).Info("Reconciling object.")
 
 	// Fetch the MachineSet object from Kubernetes
-	machineSet, err := r.MachineSetInterface.Namespace(req.Namespace).Get(ctx, req.Name, v1.GetOptions{})
+	machineSet := &unstructured.Unstructured{}
+	err := r.Get(ctx, req.NamespacedName, machineSet)
 	if err != nil {
 		err = processKubernetesError(logger, "get", err)
 		return reconcile.Result{}, err
@@ -123,13 +121,14 @@ func isReplicasGreaterThanZero(machineSet *unstructured.Unstructured) bool {
 func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(ctx context.Context, req ctrl.Request) error {
 	logger := log.FromContext(ctx)
 
-	allMachineSets, err := r.MachineSetInterface.Namespace(comm.NamespaceOpenShiftMachineApi).List(ctx, v1.ListOptions{})
+	allMachineSetsInNamespace := &unstructured.UnstructuredList{}
+	err := r.List(ctx, allMachineSetsInNamespace, &client.ListOptions{Namespace: comm.NamespaceOpenShiftMachineApi})
 	if err != nil {
 		logger.Error(err, "Failed to retrieve MachineSets from namespace "+comm.NamespaceOpenShiftMachineApi)
 		return err
 	}
 
-	for _, machineSet := range allMachineSets.Items {
+	for _, machineSet := range allMachineSetsInNamespace.Items {
 		if isWorkerMachineSet(&machineSet) &&
 			nameStartsWith(&machineSet, r.InfrastructureName) &&
 			!comm.IsObjectReconciliationEnabled(&machineSet) &&
@@ -152,11 +151,8 @@ func (r *MachineSetReconciler) scaleMachineSetToZero(ctx context.Context, logger
 		return nil
 	}
 
-	name := machineSet.GetName()
-	namespace := machineSet.GetNamespace()
-
 	// Patch the MachineSet object in Kubernetes
-	_, err = r.MachineSetInterface.Namespace(namespace).Patch(ctx, name, types.JSONPatchType, jsonPatchBytes, v1.PatchOptions{})
+	err = r.Patch(ctx, machineSet, client.RawPatch(types.JSONPatchType, jsonPatchBytes), &client.PatchOptions{})
 	if err != nil {
 		err = processKubernetesError(logger, "patch", err)
 		return err
@@ -179,7 +175,7 @@ func (r *MachineSetReconciler) replaceTokens(ctx context.Context, req ctrl.Reque
 	}
 
 	// Patch the MachineSet object in Kubernetes
-	_, err = r.MachineSetInterface.Namespace(req.Namespace).Patch(ctx, req.Name, types.JSONPatchType, machineSetPatchBytes, v1.PatchOptions{})
+	err = r.Patch(ctx, machineSet, client.RawPatch(types.JSONPatchType, machineSetPatchBytes), &client.PatchOptions{})
 	if err != nil {
 		err = processKubernetesError(logger, "patch", err)
 		return err
