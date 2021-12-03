@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap/zapcore"
 	jsonpatch "gomodules.xyz/jsonpatch/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -26,7 +25,6 @@ func TestMain(m *testing.M) {
 
 func setup() {
 	logger = zap.New(zap.Level(zapcore.Level(-10)))
-	ctrl.SetLogger(logger)
 }
 func TestIsObjectReconciliationEnabled(t *testing.T) {
 	assert := assert.New(t)
