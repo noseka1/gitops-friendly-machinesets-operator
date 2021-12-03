@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -50,4 +52,18 @@ func TestProcessKubernetesError(t *testing.T) {
 
 	err = apierrors.NewAlreadyExists(resource, name)
 	assert.Equal(err, processKubernetesError(logger, operation, err))
+}
+
+func TestIsObjectBeingDeleted(t *testing.T) {
+	assert := assert.New(t)
+
+	var obj *unstructured.Unstructured
+
+	obj = &unstructured.Unstructured{Object: map[string]interface{}{}}
+	assert.Equal(false, isObjectBeingDeleted(logger, obj))
+
+	obj = &unstructured.Unstructured{Object: map[string]interface{}{}}
+	now := v1.Now()
+	obj.SetDeletionTimestamp(&now)
+	assert.Equal(true, isObjectBeingDeleted(logger, obj))
 }
