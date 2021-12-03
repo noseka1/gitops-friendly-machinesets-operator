@@ -37,10 +37,32 @@ import (
 )
 
 // MachineReconciler reconciles a Machine object
-type MachineReconciler struct {
+type machineReconciler struct {
+	client.Client
+	Scheme                     *runtime.Scheme
+	EventRecorder              record.EventRecorder
+	DeleteMachineMinAgeSeconds int
+	DeleteMachineRequeueAfter  time.Duration
+}
+
+type MachineReconcilerConfig struct {
 	client.Client
 	Scheme        *runtime.Scheme
 	EventRecorder record.EventRecorder
+}
+
+func NewMachineReconciler(config MachineReconcilerConfig, options ...func(*machineReconciler)) *machineReconciler {
+	reconciler := &machineReconciler{
+		Client:                     config.Client,
+		Scheme:                     config.Scheme,
+		EventRecorder:              config.EventRecorder,
+		DeleteMachineMinAgeSeconds: 60,
+		DeleteMachineRequeueAfter:  20 * time.Second,
+	}
+	for _, option := range options {
+		option(reconciler)
+	}
+	return reconciler
 }
 
 func newMachineUnstructured() *unstructured.Unstructured {
@@ -56,7 +78,7 @@ func newMachineUnstructured() *unstructured.Unstructured {
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machines,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machines/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machines/finalizers,verbs=update
-func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *machineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
 	logger.V(2).Info("Reconciling object.")
@@ -92,7 +114,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// Machine object contains tokens that were not replaced. Will delete this Machine eventually
-	if deleteMachineNow(logger, machine) {
+	if r.deleteMachineNow(logger, machine) {
 		// Delete the Machine object in Kubernetes.
 		err = r.Delete(ctx, machine, &client.DeleteOptions{})
 		if err != nil {
@@ -107,7 +129,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// Requeue the request
-	return ctrl.Result{RequeueAfter: comm.DeleteMachineRequeueAfter}, nil
+	return ctrl.Result{RequeueAfter: r.DeleteMachineRequeueAfter}, nil
 }
 
 // Check if we should send the delete request at this time. If the Machine was created based on the MachineSet
@@ -115,11 +137,11 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 // We want to give machine-api-controller enough time to notice the MachineSet update. After we delete the Machine,
 // a new Machine will immediately be created. Leave enough time so that the replacement Machine is created based
 // on the udpated MachineSet.
-func deleteMachineNow(logger logr.Logger, machine *unstructured.Unstructured) bool {
+func (r *machineReconciler) deleteMachineNow(logger logr.Logger, machine *unstructured.Unstructured) bool {
 	now := v1.NewTime(time.Now())
 	creationTime := machine.GetCreationTimestamp().Time
 	age := int(now.Sub(creationTime).Seconds())
-	result := age > comm.DeleteMachineMinAgeSeconds
+	result := age > r.DeleteMachineMinAgeSeconds
 	if !result {
 		logger.V(3).Info("Not deleting machine that is only " + fmt.Sprint(age) + " secs old.")
 	}
@@ -127,7 +149,7 @@ func deleteMachineNow(logger logr.Logger, machine *unstructured.Unstructured) bo
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *MachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *machineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&machineapi.Machine{}).
 		Complete(r)

@@ -100,11 +100,11 @@ func main() {
 		setupLog.Error(err, "Unable to create controller", "controller", "MachineSet")
 		os.Exit(1)
 	}
-	if err = (&controllers.MachineReconciler{
+	if err = (controllers.NewMachineReconciler(controllers.MachineReconcilerConfig{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
 		EventRecorder: mgr.GetEventRecorderFor(controllerName),
-	}).SetupWithManager(mgr); err != nil {
+	})).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Unable to create controller", "controller", "Machine")
 		os.Exit(1)
 	}
