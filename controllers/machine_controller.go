@@ -28,6 +28,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,6 +43,16 @@ type MachineReconciler struct {
 	EventRecorder record.EventRecorder
 }
 
+func newMachineUnstructured() *unstructured.Unstructured {
+	machine := &unstructured.Unstructured{Object: map[string]interface{}{}}
+	machine.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   machineapi.SchemeGroupVersion.Group,
+		Version: machineapi.SchemeGroupVersion.Version,
+		Kind:    "Machine",
+	})
+	return machine
+}
+
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machines,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machines/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machines/finalizers,verbs=update
@@ -51,7 +62,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	logger.V(2).Info("Reconciling object.")
 
 	// Fetch the Machine object from Kubernetes
-	machine := &unstructured.Unstructured{}
+	machine := newMachineUnstructured()
 	err := r.Get(ctx, req.NamespacedName, machine)
 	if err != nil {
 		err = processKubernetesError(logger, "get", err)
