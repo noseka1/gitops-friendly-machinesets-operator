@@ -38,9 +38,8 @@ import (
 // MachineReconciler reconciles a Machine object
 type MachineReconciler struct {
 	client.Client
-	Scheme         *runtime.Scheme
-	ControllerName string
-	EventRecorder  record.EventRecorder
+	Scheme        *runtime.Scheme
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machines,verbs=get;list;watch;create;update;patch;delete

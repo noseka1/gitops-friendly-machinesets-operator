@@ -39,7 +39,6 @@ import (
 type MachineSetReconciler struct {
 	client.Client
 	Scheme             *runtime.Scheme
-	ControllerName     string
 	EventRecorder      record.EventRecorder
 	InfrastructureName string
 }
