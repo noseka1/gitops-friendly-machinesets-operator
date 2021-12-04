@@ -103,6 +103,5 @@ func TestCreatePatch(t *testing.T) {
 			Path:  "/spec/selector/matchLabels/machine.openshift.io~1cluster-api-machineset",
 			Value: "MYCLUSTER-worker-us-east-2c"}}
 	assert.Equal(nil, err)
-	assert.Equal(3, len(patch))
-	assert.Equal(expectedPatch, patch)
+	assert.ElementsMatch(expectedPatch, patch)
 }
