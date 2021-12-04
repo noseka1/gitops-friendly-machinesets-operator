@@ -120,7 +120,7 @@ var _ = Describe("MachineSet controller", func() {
 	})
 
 	Context("When MachineSet has unresolved tokens but reconciliation is disabled", func() {
-		It("Should not resolve the tokens", func() {
+		It("Should NOT resolve the tokens", func() {
 			By("Defining a MachineSet with unresolved tokens and reconciliation disabled")
 			machineSet := &machineapi.MachineSet{
 				TypeMeta: metav1.TypeMeta{
@@ -143,12 +143,15 @@ var _ = Describe("MachineSet controller", func() {
 					types.NamespacedName{Namespace: machineSet.GetNamespace(), Name: machineSet.GetName()},
 					machineSet)
 			}).ShouldNot(HaveOccurred())
-			By("Checking that MachineSet is not deleted")
-			Consistently(func() error {
-				return k8sClient.Get(ctx,
+			By("Checking that tokens have NOT been resolved")
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx,
 					types.NamespacedName{Namespace: machineSet.GetNamespace(), Name: machineSet.GetName()},
 					machineSet)
-			}).ShouldNot(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
+				value, found := machineSet.GetLabels()["machine.openshift.io/cluster-api-cluster"]
+				return found && (value == "INFRANAME")
+			}).Should(BeTrue())
 		})
 	})
 
