@@ -17,7 +17,7 @@ func IsObjectReconciliationEnabled(obj *unstructured.Unstructured) bool {
 
 func EvaluateAnnotations(logger logr.Logger, obj *unstructured.Unstructured) (bool, string) {
 	if !IsObjectReconciliationEnabled(obj) {
-		logger.V(2).Info("Skipping object patching. Annotation \"" + AnnotationEnabled + "\" that allows patching was not found on this object.")
+		logger.V(2).Info("Skipping object. Annotation \"" + AnnotationEnabled + "\" that allows patching was not found on this object.")
 		return false, ""
 	}
 
