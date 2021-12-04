@@ -74,4 +74,73 @@ var _ = Describe("Machine controller", func() {
 		})
 	})
 
+	Context("When Machine is not enabled for reconciliation", func() {
+		It("Should not delete the Machine", func() {
+			By("Defining a Machine with unresolved tokens but not enabled for reconciliation")
+			machine := &machineapi.Machine{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "machine.openshift.io/v1beta1",
+					Kind:       "Machine",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine2",
+					Namespace: "openshift-machine-api",
+					Labels: map[string]string{
+						"machine.openshift.io/cluster-api-cluster": "INFRANAME",
+					},
+				},
+				Spec: machineapi.MachineSpec{},
+			}
+			By("Creating a Machine with unresolved tokens but disabled reconciliation in Kubernetes")
+			err := k8sClient.Create(ctx, machine, &client.CreateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(func() error {
+				return k8sClient.Get(ctx,
+					types.NamespacedName{Namespace: machine.GetNamespace(), Name: machine.GetName()},
+					machine)
+			}).ShouldNot(HaveOccurred())
+			By("Checking that Machine is not deleted")
+			Consistently(func() error {
+				return k8sClient.Get(ctx,
+					types.NamespacedName{Namespace: machine.GetNamespace(), Name: machine.GetName()},
+					machine)
+			}).ShouldNot(HaveOccurred())
+		})
+	})
+
+	Context("When Machine doesn't have unresolved tokens", func() {
+		It("Should not delete the Machine", func() {
+			By("Defining a Machine with no unresolved tokens")
+			machine := &machineapi.Machine{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "machine.openshift.io/v1beta1",
+					Kind:       "Machine",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine3",
+					Namespace: "openshift-machine-api",
+					Annotations: map[string]string{
+						"gitops-friendly-machinesets.redhat-cop.io/enabled": "true"},
+					Labels: map[string]string{
+						"machine.openshift.io/cluster-api-cluster": "cluster-test-xyz",
+					},
+				},
+				Spec: machineapi.MachineSpec{},
+			}
+			By("Creating a Machine with no unresolved tokens in Kubernetes")
+			err := k8sClient.Create(ctx, machine, &client.CreateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(func() error {
+				return k8sClient.Get(ctx,
+					types.NamespacedName{Namespace: machine.GetNamespace(), Name: machine.GetName()},
+					machine)
+			}).ShouldNot(HaveOccurred())
+			By("Checking that Machine is not deleted")
+			Consistently(func() error {
+				return k8sClient.Get(ctx,
+					types.NamespacedName{Namespace: machine.GetNamespace(), Name: machine.GetName()},
+					machine)
+			}).ShouldNot(HaveOccurred())
+		})
+	})
 })
