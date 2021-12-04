@@ -65,14 +65,11 @@ func NewMachineReconciler(config MachineReconcilerConfig, options ...func(*machi
 	return reconciler
 }
 
-func newMachineUnstructured() *unstructured.Unstructured {
-	machine := &unstructured.Unstructured{Object: map[string]interface{}{}}
-	machine.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   machineapi.SchemeGroupVersion.Group,
-		Version: machineapi.SchemeGroupVersion.Version,
-		Kind:    "Machine",
-	})
-	return machine
+// SetupWithManager sets up the controller with the Manager.
+func (r *machineReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&machineapi.Machine{}).
+		Complete(r)
 }
 
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machines,verbs=get;list;watch;create;update;patch;delete
@@ -148,9 +145,12 @@ func (r *machineReconciler) deleteMachineNow(logger logr.Logger, machine *unstru
 	return result
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *machineReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&machineapi.Machine{}).
-		Complete(r)
+func newMachineUnstructured() *unstructured.Unstructured {
+	machine := &unstructured.Unstructured{Object: map[string]interface{}{}}
+	machine.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   machineapi.SchemeGroupVersion.Group,
+		Version: machineapi.SchemeGroupVersion.Version,
+		Kind:    "Machine",
+	})
+	return machine
 }
