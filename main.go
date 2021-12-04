@@ -90,6 +90,9 @@ func main() {
 	restConfig := mgr.GetConfig()
 
 	infrastructureName := retrieveInfrastructureName(restConfig)
+	if infrastructureName == "" {
+		os.Exit(1)
+	}
 
 	if err = (&controllers.MachineSetReconciler{
 		Client:             mgr.GetClient(),
@@ -139,7 +142,7 @@ func retrieveInfrastructureName(clientConfig *rest.Config) string {
 	kubeClient, err := client.New(clientConfig, client.Options{Scheme: configScheme})
 	if err != nil {
 		setupLog.Error(err, "Failed to create kube client")
-		os.Exit(1)
+		return ""
 	}
 
 	infraObjectName := client.ObjectKey{
@@ -150,13 +153,13 @@ func retrieveInfrastructureName(clientConfig *rest.Config) string {
 
 	if err = kubeClient.Get(context.TODO(), infraObjectName, infraObject); err != nil {
 		setupLog.Error(err, "Unable retrieve object "+infraObjectName.String()+" of kind Infrastructure")
-		os.Exit(1)
+		return ""
 	}
 	infraName := infraObject.Status.InfrastructureName
 
 	if infraName == "" {
-		setupLog.Error(err, "Infrastructure.status.infrastructureName must not be empty")
-		os.Exit(1)
+		setupLog.Info("Infrastructure.status.infrastructureName must not be empty")
+		return ""
 	}
 
 	setupLog.Info("Infrastructure name is " + infraName)
