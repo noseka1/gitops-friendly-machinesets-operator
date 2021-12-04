@@ -27,6 +27,7 @@ import (
 	jsonpatch "gomodules.xyz/jsonpatch/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,7 +53,7 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	logger.V(2).Info("Reconciling object.")
 
 	// Fetch the MachineSet object from Kubernetes
-	machineSet := &unstructured.Unstructured{}
+	machineSet := newMachineSetUnstructured()
 	err := r.Get(ctx, req.NamespacedName, machineSet)
 	if err != nil {
 		err = processKubernetesError(logger, "get", err)
@@ -123,7 +124,7 @@ func isReplicasGreaterThanZero(machineSet *unstructured.Unstructured) bool {
 func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(ctx context.Context, req ctrl.Request) error {
 	logger := log.FromContext(ctx)
 
-	allMachineSetsInNamespace := &unstructured.UnstructuredList{}
+	allMachineSetsInNamespace := newMachineSetUnstructuredList()
 	err := r.List(ctx, allMachineSetsInNamespace, &client.ListOptions{Namespace: comm.NamespaceOpenShiftMachineApi})
 	if err != nil {
 		logger.Error(err, "Failed to retrieve MachineSets from namespace "+comm.NamespaceOpenShiftMachineApi)
@@ -186,4 +187,24 @@ func (r *MachineSetReconciler) replaceTokens(ctx context.Context, req ctrl.Reque
 
 	logger.Info("Tokens \"" + tokenName + "\" in MachineSet replaced successfully.")
 	return nil
+}
+
+func newMachineSetUnstructured() *unstructured.Unstructured {
+	machineSet := &unstructured.Unstructured{Object: map[string]interface{}{}}
+	machineSet.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   machineapi.SchemeGroupVersion.Group,
+		Version: machineapi.SchemeGroupVersion.Version,
+		Kind:    "MachineSet",
+	})
+	return machineSet
+}
+
+func newMachineSetUnstructuredList() *unstructured.UnstructuredList {
+	machineSetList := &unstructured.UnstructuredList{Object: map[string]interface{}{}}
+	machineSetList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   machineapi.SchemeGroupVersion.Group,
+		Version: machineapi.SchemeGroupVersion.Version,
+		Kind:    "MachineSet",
+	})
+	return machineSetList
 }
