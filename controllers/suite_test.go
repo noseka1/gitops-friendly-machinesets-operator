@@ -90,8 +90,6 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	//+kubebuilder:scaffold:scheme
-
 	By("Creating a scheme")
 	scheme := runtime.NewScheme()
 	err = clientgoscheme.AddToScheme(scheme)
@@ -99,12 +97,14 @@ var _ = BeforeSuite(func() {
 	err = machineapi.Install(scheme)
 	Expect(err).ToNot(HaveOccurred())
 
+	//+kubebuilder:scaffold:scheme
+
 	By("Creating a Kubernetes client")
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	By("Creating a openshift-machine-api namespace")
+	By("Creating an openshift-machine-api namespace")
 	ns := &v1.Namespace{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -146,6 +146,7 @@ var _ = BeforeSuite(func() {
 		})).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
+	By("Starting the manager")
 	go func() {
 		defer GinkgoRecover()
 		err = mgr.Start(ctx)
