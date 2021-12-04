@@ -97,7 +97,7 @@ func (r *MachineSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func isWorkerMachineSet(machineSet *unstructured.Unstructured) bool {
-	role, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), comm.FieldSpec, comm.FieldTemplate, comm.FieldMetadata, comm.FieldLabels, comm.AnnotationMachineRole)
+	role, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), comm.FieldSpec, comm.FieldTemplate, comm.FieldMetadata, comm.FieldLabels, comm.LabelMachineRole)
 	roleString, ok := role.(string)
 	return ok && roleString == comm.MachineRoleWorker
 }

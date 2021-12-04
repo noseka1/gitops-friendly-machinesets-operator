@@ -17,7 +17,7 @@ const (
 	FieldAvailableReplicas = "availableReplicas"
 	FieldReplicas          = "replicas"
 
-	AnnotationMachineRole = "machine.openshift.io/cluster-api-machine-role"
+	LabelMachineRole = "machine.openshift.io/cluster-api-machine-role"
 
 	MachineRoleWorker = "worker"
 
