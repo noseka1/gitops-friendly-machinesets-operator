@@ -10,7 +10,7 @@ cluster-3af1-6cnhg-worker-us-east-2b   0         0                             2
 cluster-3af1-6cnhg-worker-us-east-2c   0         0                             2d5h
 ```
 
-The three MachineSets start with `cluster-3af1-6cnhg` which is called an _infrastructure name_ and unfortunately is generated randomly by the OpenShift installer. These MachineSets are difficult to manage using GitOps as their names cannot be determined ahead of time. In addition to this, the same infrastructure name is also used in the defition of these MachineSets, for example:
+The three MachineSets start with `cluster-3af1-6cnhg` which is called an _infrastructure name_ and unfortunately is generated randomly by the OpenShift installer. These MachineSets are difficult to manage using GitOps as their names cannot be determined ahead of time. In addition to this, the same infrastructure name is also used in the definition of these MachineSets, for example:
 
 <pre>
 $ oc get machineset -n openshift-machine-api cluster-3af1-6cnhg-worker-us-east-2a -o yaml
