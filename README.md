@@ -10,7 +10,7 @@ cluster-3af1-6cnhg-worker-us-east-2b   0         0                             2
 cluster-3af1-6cnhg-worker-us-east-2c   0         0                             2d5h
 ```
 
-The three MachineSets start with `cluster-3af1-6cnhg` which is called an _infrastructure name_ and unfortunately is generated randomly by the OpenShift installer. These MachineSets are difficult to manage using GitOps as their names cannot be determined ahead of time. In addition to this, the same infrastructure name is also used in the defition of these MachineSets, for example:
+The three MachineSets start with the `cluster-3af1-6cnhg` prefix which is called an _infrastructure name_ and unfortunately is generated randomly by the OpenShift installer. These MachineSets are difficult to manage using GitOps as their names cannot be determined ahead of time. In addition to this, the same infrastructure name is also used in the definition of these MachineSets, for example:
 
 <pre>
 $ oc get machineset -n openshift-machine-api cluster-3af1-6cnhg-worker-us-east-2a -o yaml
@@ -33,15 +33,15 @@ metadata:
 
 The GitOps-Friendly MachineSets Operator is supposed to be installed right after the OpenShift cluster has been deployed (day 2). It helps in two steps:
 
-1. The operator allows you to create MachineSets without the need to supply the cluster-specific infrastructure name. Instead, you insert a special token `INFRANAME` into your MachineSet definition, which will be replaced with the real infrastructure name by the operator.
+1. The operator allows you to create MachineSets without the need to supply the cluster-specific infrastructure name. Instead, you insert a special token `INFRANAME` into your MachineSet definition. This special token will be replaced with the real infrastructure name right after you apply the manifest to the cluster.
 
-2. As soon as the first node created by your MachineSet becomes available, the operator will scale the installer-provisioned MachineSets down to zero. They cannot be managed by GitOps anyway, so let's not use them.
+2. As soon as the first node created by your MachineSet becomes available, the operator will scale the installer-provisioned MachineSets down to zero. These MachineSets cannot be managed by GitOps, so let's not use them at all.
 
 ![GitOps-Friendly MachineSets Operator](docs/images/gitops_friendly_machinesets_operator.png "GitOps-Friendly MachineSets Operator")
 
-> :exclamation: The GitOps-Friendly MachineSets Operator is meant to be installed right after the OpenShift cluster deployment and before any critical workloads are running on the cluster. **The operator will scale the installer-provisioned MachineSets down to zero which will wipe out the respective worker Machines from the cluster.** Future versions of the operator will allow disabling this behavior so that the operator can be safely deployed on existing OpenShift clusters.
+> :exclamation: The GitOps-Friendly MachineSets Operator is meant to be installed right after the OpenShift cluster deployment and before any critical workloads are running on the cluster. **The operator will scale the installer-provisioned MachineSets down to zero which will wipe out the respective worker Machines from the cluster.** This could disrupt the critical workloads running on the cluster. Future versions of the operator will allow disabling this behavior so that the operator can be safely deployed on existing OpenShift clusters.
 
-The operator is tested on AWS and vSphere OpenShift clusters, however, it should work with any underlying infrastructure provider. The operator was tested on OpenShift 4.8.20.
+The operator was tested on AWS and vSphere OpenShift clusters, however, it should work with any underlying infrastructure provider. The operator was tested on OpenShift 4.8.20. The operator is known to not work with OpenShift 4.7.x due to the operator-sdk used to built the operator likely not being compatible with OpenShift 4.7.x.
 
 ## Building Container Images (Optional)
 
@@ -136,9 +136,9 @@ $ oc apply -k deploy
 
 ## Creating MachineSets
 
-Create a MachineSet specific to your underlying infrastructure provider. For example, a MachineSet for AWS and vSphere may look like the ones below. Note that all occurences of the infrastructure name are marked using the `INFRANAME` token. Operator will replace this `INFRANAME` token with the real infrastructure name after the MachineSet manifest is applied.
+Create a MachineSet specific to your underlying infrastructure provider. For example, a MachineSet for AWS and vSphere may look like the ones below. Note that all occurences of the infrastructure name are marked using the `INFRANAME` token. Operator will replace this `INFRANAME` token with the real infrastructure name after the MachineSet manifest is applied to the cluster.
 
-Also note that you must add two _annotations_ that are required for the operator to take any action on the MachineSet:
+Also note that you must add two _annotations_ that are required for the operator to take any action on the MachineSet and respective Machines:
 1. Set `metadata.annotations.gitops-friendly-machinesets.redhat-cop.io/enabled: "true"`
 2. Set `spec.template.metadata.annotations.gitops-friendly-machinesets.redhat-cop.io/enabled: "true"`
 
@@ -347,3 +347,43 @@ spec:
     - /spec/template/metadata/labels/machine.openshift.io~1cluster-api-cluster
     - /spec/template/spec/providerSpec/value/template</b>
 </pre>
+
+## Troubleshooting
+
+Increase the operator log level to get more verbose logs. Get the installed csv:
+
+```
+$ oc get csv -n gitops-friendly-machinesets
+NAME                                          DISPLAY                       VERSION   REPLACES   PHASE
+gitops-friendly-machinesets-operator.v0.1.0   GitOps-Friendly MachineSets   0.1.0                Succeeded
+```
+
+Edit the csv:
+
+```
+$ oc edit csv -n gitops-friendly-machinesets gitops-friendly-machinesets-operator.v0.1.0
+```
+
+Find the command-line parameters passed to the operator and add `-zap-log-level=5` like this:
+
+<pre>
+             - args:
+                - --health-probe-bind-address=:8081
+                - --metrics-bind-address=127.0.0.1:8080
+                - --leader-elect
+                <b>- -zap-log-level=5</b>
+                command:
+                - /manager
+</pre>
+
+This change in csv will propagate to the `gitops-friendly-machinesets-controller-manager` deployment object and finally to the pod. After the operator pod restarts, you should see more verbose logs:
+
+```
+$ oc logs \
+    -f \
+    -n gitops-friendly-machinesets \
+    -c manager \
+    gitops-friendly-machinesets-controller-manager-f6b784bdb-8xts7
+```
+
+Remember to set the operator log level back after you are done troubleshooting.
