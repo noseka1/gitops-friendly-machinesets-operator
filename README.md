@@ -355,13 +355,13 @@ Increase the operator log level to get more verbose logs. Get the installed csv:
 ```
 $ oc get csv -n gitops-friendly-machinesets
 NAME                                          DISPLAY                       VERSION   REPLACES   PHASE
-gitops-friendly-machinesets-operator.v0.1.0   GitOps-Friendly MachineSets   0.1.0                Succeeded
+gitops-friendly-machinesets-operator.v0.2.0   GitOps-Friendly MachineSets   0.2.0                Succeeded
 ```
 
 Edit the csv:
 
 ```
-$ oc edit csv -n gitops-friendly-machinesets gitops-friendly-machinesets-operator.v0.1.0
+$ oc edit csv -n gitops-friendly-machinesets gitops-friendly-machinesets-operator.v0.2.0
 ```
 
 Find the command-line parameters passed to the operator and add `-zap-log-level=5` like this:
