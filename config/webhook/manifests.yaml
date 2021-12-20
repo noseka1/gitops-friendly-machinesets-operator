@@ -1,0 +1,29 @@
+
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-machine-openshift-io-v1beta1-machineset
+  failurePolicy: Fail
+  name: gitops-friendly-machinesets.kb.io
+  rules:
+  - apiGroups:
+    - machine.openshift.io
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - machinesets
+  sideEffects: None

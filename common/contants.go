@@ -1,6 +1,4 @@
-package controllers
-
-import "time"
+package common
 
 const (
 	AnnotationBase      = "gitops-friendly-machinesets.redhat-cop.io"
@@ -19,7 +17,7 @@ const (
 	FieldAvailableReplicas = "availableReplicas"
 	FieldReplicas          = "replicas"
 
-	AnnotationMachineRole = "machine.openshift.io/cluster-api-machine-role"
+	LabelMachineRole = "machine.openshift.io/cluster-api-machine-role"
 
 	MachineRoleWorker = "worker"
 
@@ -28,7 +26,4 @@ const (
 	EventReasonScale  = "Scale"
 
 	NamespaceOpenShiftMachineApi = "openshift-machine-api"
-
-	DeleteMachineMinAgeSeconds = 60
-	DeleteMachineRequeueAfter  = 20 * time.Second
 )

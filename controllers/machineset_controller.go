@@ -17,19 +17,18 @@ limitations under the License.
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"strings"
 
 	"github.com/go-logr/logr"
+	comm "github.com/noseka1/gitops-friendly-machinesets-operator/common"
 	machineapi "github.com/openshift/api/machine/v1beta1"
-	"github.com/wI2L/jsondiff"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	jsonpatch "gomodules.xyz/jsonpatch/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,11 +39,9 @@ import (
 // MachineSetReconciler reconciles a MachineSet object
 type MachineSetReconciler struct {
 	client.Client
-	Scheme              *runtime.Scheme
-	ControllerName      string
-	EventRecorder       record.EventRecorder
-	InfrastructureName  string
-	MachineSetInterface dynamic.NamespaceableResourceInterface
+	Scheme             *runtime.Scheme
+	EventRecorder      record.EventRecorder
+	InfrastructureName string
 }
 
 //+kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets,verbs=get;list;watch;create;update;patch;delete
@@ -56,7 +53,8 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	logger.V(2).Info("Reconciling object.")
 
 	// Fetch the MachineSet object from Kubernetes
-	machineSet, err := r.MachineSetInterface.Namespace(req.Namespace).Get(ctx, req.Name, v1.GetOptions{})
+	machineSet := newMachineSetUnstructured()
+	err := r.Get(ctx, req.NamespacedName, machineSet)
 	if err != nil {
 		err = processKubernetesError(logger, "get", err)
 		return reconcile.Result{}, err
@@ -68,7 +66,7 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// Is this object enabled for reconciliation?
-	enabled, tokenName := evaluateAnnotations(logger, machineSet)
+	enabled, tokenName := comm.EvaluateAnnotations(logger, machineSet)
 	if !enabled {
 		return reconcile.Result{}, nil
 	}
@@ -79,6 +77,8 @@ func (r *MachineSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return reconcile.Result{}, err
 	}
 
+	// If the managed MachineSet has at least one node available, check and scale the
+	// installer-provisioned MachineSets to zero
 	if isWorkerMachineSet(machineSet) && hasNodesAvailable(machineSet) {
 		err = r.scaleInstallerProvisionedMachineSetsToZero(ctx, req)
 		if err != nil {
@@ -97,13 +97,13 @@ func (r *MachineSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func isWorkerMachineSet(machineSet *unstructured.Unstructured) bool {
-	role, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), FieldSpec, FieldTemplate, FieldMetadata, FieldLabels, AnnotationMachineRole)
+	role, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), comm.FieldSpec, comm.FieldTemplate, comm.FieldMetadata, comm.FieldLabels, comm.LabelMachineRole)
 	roleString, ok := role.(string)
-	return ok && roleString == MachineRoleWorker
+	return ok && roleString == comm.MachineRoleWorker
 }
 
 func hasNodesAvailable(machineSet *unstructured.Unstructured) bool {
-	availableReplicas, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), FieldStatus, FieldAvailableReplicas)
+	availableReplicas, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), comm.FieldStatus, comm.FieldAvailableReplicas)
 	availableReplicasInt, ok := availableReplicas.(int64)
 	return ok && availableReplicasInt > 0
 }
@@ -114,24 +114,27 @@ func nameStartsWith(machineSet *unstructured.Unstructured, prefix string) bool {
 }
 
 func isReplicasGreaterThanZero(machineSet *unstructured.Unstructured) bool {
-	replicas, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), FieldSpec, FieldReplicas)
+	replicas, _, _ := unstructured.NestedFieldNoCopy(machineSet.UnstructuredContent(), comm.FieldSpec, comm.FieldReplicas)
 	replicasInt, ok := replicas.(int64)
 	return ok && replicasInt > 0
 }
 
+// Look up all the installer-provisioned MachineSets and scale them to zero replicas.
+// This will remove all the installer-provisioned Machines from the cluster.
 func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(ctx context.Context, req ctrl.Request) error {
 	logger := log.FromContext(ctx)
 
-	allMachineSets, err := r.MachineSetInterface.Namespace(NamespaceOpenShiftMachineApi).List(ctx, v1.ListOptions{})
+	allMachineSetsInNamespace := newMachineSetUnstructuredList()
+	err := r.List(ctx, allMachineSetsInNamespace, &client.ListOptions{Namespace: comm.NamespaceOpenShiftMachineApi})
 	if err != nil {
-		logger.Error(err, "Failed to retrieve MachineSets from namespace "+NamespaceOpenShiftMachineApi)
+		logger.Error(err, "Failed to retrieve MachineSets from namespace "+comm.NamespaceOpenShiftMachineApi)
 		return err
 	}
 
-	for _, machineSet := range allMachineSets.Items {
+	for _, machineSet := range allMachineSetsInNamespace.Items {
 		if isWorkerMachineSet(&machineSet) &&
 			nameStartsWith(&machineSet, r.InfrastructureName) &&
-			!isObjectReconciliationEnabled(&machineSet) &&
+			!comm.IsObjectReconciliationEnabled(&machineSet) &&
 			isReplicasGreaterThanZero(&machineSet) {
 			newLogger := log.FromContext(ctx, "scaled machineset", machineSet.GetNamespace()+"/"+machineSet.GetName())
 			err := r.scaleMachineSetToZero(ctx, newLogger, &machineSet)
@@ -144,25 +147,23 @@ func (r *MachineSetReconciler) scaleInstallerProvisionedMachineSetsToZero(ctx co
 }
 
 func (r *MachineSetReconciler) scaleMachineSetToZero(ctx context.Context, logger logr.Logger, machineSet *unstructured.Unstructured) error {
-	jsonPatch := jsondiff.Patch{jsondiff.Operation{Type: "replace", Path: "/" + FieldSpec + "/" + FieldReplicas, Value: 0}}
+	// Prepare the JSON patch to set replicas = 0
+	jsonPatch := []jsonpatch.Operation{{Operation: "replace", Path: "/" + comm.FieldSpec + "/" + comm.FieldReplicas, Value: 0}}
 	jsonPatchBytes, err := json.Marshal(jsonPatch)
 	if err != nil {
 		logger.Error(err, "Failed to marshal patch.")
 		return nil
 	}
 
-	name := machineSet.GetName()
-	namespace := machineSet.GetNamespace()
-
 	// Patch the MachineSet object in Kubernetes
-	_, err = r.MachineSetInterface.Namespace(namespace).Patch(ctx, name, types.JSONPatchType, jsonPatchBytes, v1.PatchOptions{})
+	err = r.Patch(ctx, machineSet, client.RawPatch(types.JSONPatchType, jsonPatchBytes), &client.PatchOptions{})
 	if err != nil {
 		err = processKubernetesError(logger, "patch", err)
 		return err
 	}
 
 	msg := "Scaling MachineSet provisioned by OpenShift installer to zero."
-	r.EventRecorder.Event(machineSet, EventTypeNormal, EventReasonScale, msg)
+	r.EventRecorder.Event(machineSet, comm.EventTypeNormal, comm.EventReasonScale, msg)
 	logger.Info(msg)
 
 	return nil
@@ -172,13 +173,13 @@ func (r *MachineSetReconciler) replaceTokens(ctx context.Context, req ctrl.Reque
 	logger := log.FromContext(ctx)
 
 	// Compute the JSON patch
-	machineSetPatchBytes, err := createPatch(logger, machineSet, tokenName, r.InfrastructureName)
+	machineSetPatchBytes, err := comm.CreatePatch(logger, machineSet, tokenName, r.InfrastructureName)
 	if err != nil || len(machineSetPatchBytes) == 0 {
 		return nil
 	}
 
 	// Patch the MachineSet object in Kubernetes
-	_, err = r.MachineSetInterface.Namespace(req.Namespace).Patch(ctx, req.Name, types.JSONPatchType, machineSetPatchBytes, v1.PatchOptions{})
+	err = r.Patch(ctx, machineSet, client.RawPatch(types.JSONPatchType, machineSetPatchBytes), &client.PatchOptions{})
 	if err != nil {
 		err = processKubernetesError(logger, "patch", err)
 		return err
@@ -188,35 +189,22 @@ func (r *MachineSetReconciler) replaceTokens(ctx context.Context, req ctrl.Reque
 	return nil
 }
 
-func createPatch(logger logr.Logger, machineSet *unstructured.Unstructured, tokenName, infrastructureName string) ([]byte, error) {
-	// Extract MachineSet sections that are going to be patched
-	machineSetBytes, err := marshalObjectSections(logger, machineSet)
-	if err != nil {
-		return []byte{}, err
-	}
+func newMachineSetUnstructured() *unstructured.Unstructured {
+	machineSet := &unstructured.Unstructured{Object: map[string]interface{}{}}
+	machineSet.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   machineapi.SchemeGroupVersion.Group,
+		Version: machineapi.SchemeGroupVersion.Version,
+		Kind:    "MachineSet",
+	})
+	return machineSet
+}
 
-	// Replace the token in the serialized JSON
-	machineSetUpdatedBytes := bytes.ReplaceAll(machineSetBytes, []byte(tokenName), []byte(infrastructureName))
-
-	// Compute the JSON patch
-	jsonPatch, err := jsondiff.CompareJSON(machineSetBytes, machineSetUpdatedBytes)
-	if err != nil {
-		logger.Error(err, "Failed to generate patch.")
-		return []byte{}, err
-	}
-
-	if len(jsonPatch) == 0 {
-		logger.V(2).Info("Nothing to patch for object.")
-		return []byte{}, nil
-	}
-
-	jsonPatchBytes, err := json.Marshal(jsonPatch)
-	if err != nil {
-		logger.Error(err, "Failed to marshal patch.")
-		return []byte{}, err
-	}
-
-	logger.V(3).Info("Generated JSON Patch: " + string(jsonPatchBytes))
-
-	return jsonPatchBytes, nil
+func newMachineSetUnstructuredList() *unstructured.UnstructuredList {
+	machineSetList := &unstructured.UnstructuredList{Object: map[string]interface{}{}}
+	machineSetList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   machineapi.SchemeGroupVersion.Group,
+		Version: machineapi.SchemeGroupVersion.Version,
+		Kind:    "MachineSet",
+	})
+	return machineSetList
 }

@@ -3,5 +3,5 @@ kind: CatalogSource
 metadata:
   name: gitops-friendly-machinesets
 spec:
-  image: openshift.io/gitops-friendly-machinesets-operator-catalog:v0.1.0
+  image: openshift.io/gitops-friendly-machinesets-operator-catalog:v0.2.0
   sourceType: grpc

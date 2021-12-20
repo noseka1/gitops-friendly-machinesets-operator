@@ -29,10 +29,7 @@ import (
 	configapi "github.com/openshift/api/config/v1"
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/noseka1/gitops-friendly-machinesets-operator/controllers"
+	"github.com/noseka1/gitops-friendly-machinesets-operator/webhooks"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -92,33 +90,30 @@ func main() {
 	restConfig := mgr.GetConfig()
 
 	infrastructureName := retrieveInfrastructureName(restConfig)
-
-	machineSetResource := retrieveMachineApiResourceForKind(restConfig, "MachineSet")
-	machineSetInterface := retrieveMachineApiInterfaceForResource(restConfig, machineSetResource)
-	machineResource := retrieveMachineApiResourceForKind(restConfig, "Machine")
-	machineInterface := retrieveMachineApiInterfaceForResource(restConfig, machineResource)
+	if infrastructureName == "" {
+		os.Exit(1)
+	}
 
 	if err = (&controllers.MachineSetReconciler{
-		Client:              mgr.GetClient(),
-		Scheme:              mgr.GetScheme(),
-		ControllerName:      controllerName,
-		EventRecorder:       mgr.GetEventRecorderFor(controllerName),
-		InfrastructureName:  infrastructureName,
-		MachineSetInterface: machineSetInterface,
+		Client:             mgr.GetClient(),
+		Scheme:             mgr.GetScheme(),
+		EventRecorder:      mgr.GetEventRecorderFor(controllerName),
+		InfrastructureName: infrastructureName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Unable to create controller", "controller", "MachineSet")
 		os.Exit(1)
 	}
-	if err = (&controllers.MachineReconciler{
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		ControllerName:   controllerName,
-		EventRecorder:    mgr.GetEventRecorderFor(controllerName),
-		MachineInterface: machineInterface,
-	}).SetupWithManager(mgr); err != nil {
+	if err = (controllers.NewMachineReconciler(controllers.MachineReconcilerConfig{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		EventRecorder: mgr.GetEventRecorderFor(controllerName),
+	})).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Unable to create controller", "controller", "Machine")
 		os.Exit(1)
 	}
+
+	(&webhooks.MachineSetWebhook{InfrastructureName: infrastructureName}).SetupWithManager(mgr)
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -147,7 +142,7 @@ func retrieveInfrastructureName(clientConfig *rest.Config) string {
 	kubeClient, err := client.New(clientConfig, client.Options{Scheme: configScheme})
 	if err != nil {
 		setupLog.Error(err, "Failed to create kube client")
-		os.Exit(1)
+		return ""
 	}
 
 	infraObjectName := client.ObjectKey{
@@ -158,67 +153,16 @@ func retrieveInfrastructureName(clientConfig *rest.Config) string {
 
 	if err = kubeClient.Get(context.TODO(), infraObjectName, infraObject); err != nil {
 		setupLog.Error(err, "Unable retrieve object "+infraObjectName.String()+" of kind Infrastructure")
-		os.Exit(1)
+		return ""
 	}
 	infraName := infraObject.Status.InfrastructureName
 
 	if infraName == "" {
-		setupLog.Error(err, "Infrastructure.status.infrastructureName must not be empty")
-		os.Exit(1)
+		setupLog.Info("Infrastructure.status.infrastructureName must not be empty")
+		return ""
 	}
 
 	setupLog.Info("Infrastructure name is " + infraName)
 
 	return infraName
-}
-
-func retrieveMachineApiResourceForKind(clientConfig *rest.Config, kind string) string {
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(clientConfig)
-	if err != nil {
-		setupLog.Error(err, "Unable to create a discovery client")
-		os.Exit(1)
-	}
-
-	machineSetGv := schema.GroupVersion{
-		Group:   machineapi.SchemeGroupVersion.Group,
-		Version: machineapi.SchemeGroupVersion.Version,
-	}
-
-	resourceList, err := discoveryClient.ServerResourcesForGroupVersion(machineSetGv.String())
-	if err != nil {
-		setupLog.Error(err, "Unable to retrieve resouce list for "+machineSetGv.String())
-		os.Exit(1)
-	}
-
-	var resource string
-	for _, res := range resourceList.APIResources {
-		if res.Kind == kind {
-			resource = res.Name
-			break
-		}
-	}
-
-	if resource == "" {
-		setupLog.Info("Cannot find resource for kind " + kind)
-		os.Exit(1)
-	}
-
-	return resource
-}
-
-func retrieveMachineApiInterfaceForResource(clientConfig *rest.Config, resource string) dynamic.NamespaceableResourceInterface {
-
-	dynamicClient, err := dynamic.NewForConfig(clientConfig)
-	if err != nil {
-		setupLog.Error(err, "Unable to create a dynamic client")
-		os.Exit(1)
-	}
-
-	machineSetGvr := schema.GroupVersionResource{
-		Group:    machineapi.SchemeGroupVersion.Group,
-		Version:  machineapi.SchemeGroupVersion.Version,
-		Resource: resource,
-	}
-
-	return dynamicClient.Resource(machineSetGvr)
 }

@@ -6,7 +6,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.13.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-  name: gitops-friendly-machinesets-operator.v0.1.0
+  name: gitops-friendly-machinesets-operator.v0.2.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -142,6 +142,10 @@ spec:
                   initialDelaySeconds: 15
                   periodSeconds: 20
                 name: manager
+                ports:
+                - containerPort: 9443
+                  name: webhook-server
+                  protocol: TCP
                 readinessProbe:
                   httpGet:
                     path: /readyz
@@ -217,4 +221,26 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat Community of Practice
-  version: 0.1.0
+  version: 0.2.0
+  webhookdefinitions:
+  - admissionReviewVersions:
+    - v1
+    - v1beta1
+    containerPort: 443
+    deploymentName: gitops-friendly-machinesets-controller-manager
+    failurePolicy: Fail
+    generateName: gitops-friendly-machinesets.kb.io
+    rules:
+    - apiGroups:
+      - machine.openshift.io
+      apiVersions:
+      - v1beta1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - machinesets
+    sideEffects: None
+    targetPort: 9443
+    type: MutatingAdmissionWebhook
+    webhookPath: /mutate-machine-openshift-io-v1beta1-machineset
